@@ -62,5 +62,5 @@ ALTER TABLE "public"."catalogo_produtos" ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS catalogo_produtos_tenant_isolation_all ON "public"."catalogo_produtos";
 CREATE POLICY catalogo_produtos_tenant_isolation_all ON "public"."catalogo_produtos"
     FOR ALL
-    USING (public.fn_user_org_ids() @> ARRAY["organization_id"])
-    WITH CHECK (public.fn_user_org_ids() @> ARRAY["organization_id"]);
+    USING ("organization_id" IN (SELECT public.fn_user_org_ids()))
+    WITH CHECK ("organization_id" IN (SELECT public.fn_user_org_ids()));

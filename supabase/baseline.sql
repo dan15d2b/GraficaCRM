@@ -53078,7 +53078,8 @@ create table if not exists "public"."revendedor_planos" (
     "ativo" boolean not null default true,
     "created_at" timestamp with time zone default "now"() not null,
     "updated_at" timestamp with time zone default "now"() not null,
-    constraint "revendedor_planos_preco_positivo" check ("preco_mensal_cents" >= 0)
+    constraint "revendedor_planos_preco_positivo" check ("preco_mensal_cents" >= 0),
+    constraint "revendedor_planos_pkey" primary key ("id")
 );
 
 alter table "public"."revendedor_planos" owner to "postgres";
@@ -53103,7 +53104,8 @@ create table if not exists "public"."revendedor_assinaturas" (
     ),
     constraint "revendedor_assinaturas_dia_valido" check (
         "dia_vencimento" >= 1 and "dia_vencimento" <= 28
-    )
+    ),
+    constraint "revendedor_assinaturas_pkey" primary key ("id")
 );
 
 alter table "public"."revendedor_assinaturas" owner to "postgres";
@@ -53124,6 +53126,33 @@ comment on column "public"."revendedor_assinaturas"."taxa_implantação_cents" i
   'Taxa única de implantação (setup)';
 comment on column "public"."revendedor_assinaturas"."implantação_paga" is
   'Se a taxa de implantação já foi paga';
+
+-- Triggers de updated_at (espelho da migration 0632; faltavam no apêndice)
+drop trigger if exists trg_revendedor_planos_updated_at on "public"."revendedor_planos";
+create trigger trg_revendedor_planos_updated_at
+    before update on "public"."revendedor_planos"
+    for each row execute function public.fn_set_updated_at();
+
+drop trigger if exists trg_revendedor_assinaturas_updated_at on "public"."revendedor_assinaturas";
+create trigger trg_revendedor_assinaturas_updated_at
+    before update on "public"."revendedor_assinaturas"
+    for each row execute function public.fn_set_updated_at();
+
+-- RLS (espelho da migration 0632; faltava no apêndice)
+alter table "public"."revendedor_planos" enable row level security;
+alter table "public"."revendedor_assinaturas" enable row level security;
+
+drop policy if exists revendedor_planos_tenant_isolation_all on "public"."revendedor_planos";
+create policy revendedor_planos_tenant_isolation_all on "public"."revendedor_planos"
+    for all
+    using (true)
+    with check (true);
+
+drop policy if exists revendedor_assinaturas_tenant_isolation_all on "public"."revendedor_assinaturas";
+create policy revendedor_assinaturas_tenant_isolation_all on "public"."revendedor_assinaturas"
+    for all
+    using (true)
+    with check (true);
 
 -- ---- catálogo de produtos e serviços da gráfica (migration 0631) ----
 create table if not exists "public"."catalogo_produtos" (
@@ -53166,13 +53195,13 @@ comment on column "public"."catalogo_produtos"."unidade" is
 comment on column "public"."catalogo_produtos"."preco_cents" is
   'Preço unitário em centavos (ex: 1500 = R$ 15,00)';
 
-create or replace function public.fn_set_updated_at()
-returns trigger as $$
-begin
+CREATE OR REPLACE FUNCTION public.fn_set_updated_at()
+RETURNS trigger AS $$
+BEGIN
     NEW.updated_at = now();
-    return NEW;
-end;
-$$ language plpgsql;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 drop trigger if exists trg_catalogo_produtos_updated_at on "public"."catalogo_produtos";
 create trigger trg_catalogo_produtos_updated_at
@@ -53184,5 +53213,5 @@ alter table "public"."catalogo_produtos" enable row level security;
 drop policy if exists catalogo_produtos_tenant_isolation_all on "public"."catalogo_produtos";
 create policy catalogo_produtos_tenant_isolation_all on "public"."catalogo_produtos"
     for all
-    using (public.fn_user_org_ids() @> array["organization_id"])
-    with check (public.fn_user_org_ids() @> array["organization_id"]);
+    using ("organization_id" in (select public.fn_user_org_ids()))
+    with check ("organization_id" in (select public.fn_user_org_ids()));
