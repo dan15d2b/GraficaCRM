@@ -1,0 +1,91 @@
+#!/bin/bash
+# ==========================================
+# CRMGráfica 2.0 — Deploy em VPS
+# ==========================================
+
+set -e
+
+DOMAIN="${1:-seu-dominio.com}"
+echo "╔════════════════════════════════════════════════════╗"
+echo "║      CRMGráfica 2.0 — Deploy em VPS                 ║"
+echo "╚════════════════════════════════════════════════════╝"
+echo ""
+echo "📍 Domínio configurado: $DOMAIN"
+echo ""
+
+# Cores
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# Atualizar sistema
+echo "🔄 Atualizando sistema..."
+sudo apt update && sudo apt upgrade -y
+
+# Instalar dependências
+echo "📦 Instalando dependências..."
+sudo apt install -y curl git postgresql postgresql-contrib nginx certbot python3-certbot-nginx
+
+# Instalar Node.js
+echo "📦 Instalando Node.js 22..."
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Instalar pnpm
+echo "📦 Instalando pnpm..."
+sudo npm install -g pnpm
+
+# Criar usuário do aplicativo
+echo "👤 Criando usuário do aplicativo..."
+sudo useradd -m -s /bin/bash crmgrafica
+sudo mkdir -p /opt/crmgrafica
+sudo chown -R crmgrafica:crmgrafica /opt/crmgrafica
+
+# Clonar/repo (ou fazer upload dos arquivos)
+echo "📁 Configurando diretório do aplicativo..."
+cd /opt/crmgrafica
+
+# Copiar arquivos (se já estiver aqui)
+if [ -d "/home/daniel/Área de trabalho/GraficaCRM-main/crmgrafica-2.0" ]; then
+    echo "📋 Copiando arquivos..."
+    cp -r "/home/daniel/Área de trabalho/GraficaCRM-main/crmgrafica-2.0"/* .
+fi
+
+# Instalar dependências
+echo "📦 Instalando dependências..."
+sudo -u crmgrafica pnpm install --production
+
+# Configurar variáveis de ambiente
+echo "🔧 Configurando variáveis de ambiente..."
+cat > .env.production << ENVEOF
+# ==========================================
+# CRMGráfica 2.0 — Produção
+# ==========================================
+
+# Banco de Dados
+DATABASE_URL=postgresql://crmgrafica:SEU_PASSWORD_AQUI@localhost:5432/crmgrafica
+
+# Autenticação
+NEXTAUTH_URL=https://$DOMAIN
+NEXTAUTH_SECRET=$(openssl rand -base64 32)
+
+# Supabase (se usar)
+NEXT_PUBLIC_SUPABASE_URL=https://seudominio.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_anon_key
+SUPABASE_SERVICE_ROLE_KEY=sua_service_role_key
+
+# Licenciamento
+LICENSE_SERVER_URL=https://$DOMAIN/api/license/validate
+
+# Branding
+APP_NAME=CRMGráfica
+APP_ACCENT_HEX=#2563EB
+
+# Segurança
+ENCRYPTION_KEY=$(openssl rand -hex 32)
+INTERNAL_CRON_SECRET=$(openssl rand -hex 32)
+
+# Produção
+NODE_ENV=production
+PORT=3000

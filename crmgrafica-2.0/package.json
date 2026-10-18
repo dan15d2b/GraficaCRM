@@ -1,44 +1,13 @@
 {
-  "name": "crmgrafica",
+  "name": "crmgrafica-kit",
   "version": "2.0.0",
   "private": true,
-  "description": "CRMGráfica 2.0 — Sistema de gestão comercial focado em Gráficas e Comunicação Visual.",
-  "engines": {
-    "node": ">=22"
-  },
+  "description": "Kit de nicho CRMGráfica sobre o DeskcommCRM — não é um app Next.js.",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "test": "vitest run",
-    "lint": "eslint .",
-    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json"
-  },
-  "dependencies": {
-    "@radix-ui/react-slot": "^1.5.0",
-    "@supabase/supabase-js": "^2.118.0",
-    "class-variance-authority": "^0.7.0",
-    "clsx": "^2.1.1",
-    "lucide-react": "^1.47.0",
-    "next": "^16.3.8",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "sonner": "^2.0.8",
-    "tailwind-merge": "^3.7.0",
-    "zod": "^4.6.5"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^22.20.4",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^6.1.2",
-    "jsdom": "^30.1.3",
-    "postcss": "^8.5.28",
-    "prettier": "^3.9.9",
-    "tailwindcss": "^4.3.3",
-    "typescript": "^6.0.3",
-    "vitest": "^5.0.5"
-  },
-  "packageManager": "pnpm@9.15.9"
+    "dev": "node -e \"console.error('\\nCRMGráfica não roda sozinho.\\nUse o Deskcomm da raiz:\\n  bash crmgrafica-2.0/scripts/aplicar-marca.sh\\n  bash crmgrafica-2.0/scripts/subir-local.sh\\n\\nVeja README.md e MOCK-DESCONTINUADO.md\\n'); process.exit(1)\"",
+    "build": "pnpm run dev",
+    "start": "pnpm run dev",
+    "marca": "bash scripts/aplicar-marca.sh",
+    "subir": "bash scripts/subir-local.sh"
+  }
 }
