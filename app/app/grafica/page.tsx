@@ -12,10 +12,11 @@ export default async function GraficaPage() {
 
   const supabase = await createClient();
 
-  // Busca nicho da organização para mostrar o título certo
+  // Busca nicho da organização para mostrar o título certo. A coluna de nome é
+  // `display_name` — `organizations` não tem `name`.
   const { data: org } = await supabase
     .from("organizations")
-    .select("name, settings")
+    .select("display_name, settings")
     .eq("id", activeOrg.orgId)
     .maybeSingle();
 
@@ -30,7 +31,7 @@ export default async function GraficaPage() {
   return (
     <GraficaClient
       orgId={activeOrg.orgId}
-      orgName={org?.name || activeOrg.name}
+      orgName={org?.display_name || activeOrg.name}
       nicho={nicho}
     />
   );

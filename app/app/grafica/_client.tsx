@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useT } from "@/hooks/i18n/useT";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Factory, Image, Rocket, Target, TrendingUp, ClipboardList } from "@/lib/ui/icons";
+import { ArrowsClockwise, ChartLineUp, ClipboardText, ImageSquare, Kanban, Storefront } from "@/lib/ui/icons";
 
 interface Lead {
   id: string;
@@ -17,6 +17,7 @@ interface Lead {
   status: string;
   value_cents: number | null;
   currency: string | null;
+  pipeline_id: string | null;
   arte_status: string;
   arte_versao: string;
   producao_status: string;
@@ -29,8 +30,27 @@ interface Lead {
 
 type ArteStatus = "aprovado" | "ajuste_solicitado";
 
+// Row crua vindas do GET /api/v1/leads — campos de arte/produção podem vir
+// null no banco, e a tela aplica o default (pendente/na_fila) no map.
+interface LeadApi {
+  id: string;
+  title: string | null;
+  status: string | null;
+  value_cents: number | null;
+  currency: string | null;
+  pipeline_id: string | null;
+  arte_status: string | null;
+  arte_versao: string | null;
+  producao_status: string | null;
+  producao_prioridade: string | null;
+  producao_sla_dias: number | null;
+  producao_data_prevista: string | null;
+  created_at: string;
+  contact_id: string | null;
+}
+
 export function GraficaClient({
-  orgId,
+  orgId: _orgId,
   orgName,
   nicho,
 }: {
@@ -38,7 +58,6 @@ export function GraficaClient({
   orgName: string;
   nicho: string;
 }) {
-  const t = useT();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [arteDialogOpen, setArteDialogOpen] = useState(false);
@@ -50,18 +69,22 @@ export function GraficaClient({
   const loadLeads = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/v1/leads?organization_id=${orgId}`);
+      // A org vem do cookie de sessão no servidor (fonte confiável) —
+      // nunca da query. Mandar organization_id no GET seria furo.
+      const res = await fetch(`/api/v1/leads?limit=100`);
       const json = await res.json();
+      // A tela da gráfica é a fila de produção: o operador quer ver TODOS os
+      // negócios, inclusive os ainda sem funil. Filtrar por pipeline_id aqui
+      // escondia lead órfão e parecia "tela vazia" sem erro nenhum.
       const data = Array.isArray(json.data) ? json.data : [];
       setLeads(
-        data
-          .filter((l: any) => l.pipeline_id)
-          .map((l: any) => ({
+        data.map((l: LeadApi) => ({
             id: l.id,
-            title: l.title,
-            status: l.status,
+            title: l.title ?? "Sem título",
+            status: l.status ?? "novo",
             value_cents: l.value_cents,
             currency: l.currency,
+            pipeline_id: l.pipeline_id,
             arte_status: l.arte_status || "pendente",
             arte_versao: l.arte_versao || "V1",
             producao_status: l.producao_status || "na_fila",
@@ -77,9 +100,12 @@ export function GraficaClient({
     } finally {
       setLoading(false);
     }
-  }, [orgId]);
+  }, []);
 
   useEffect(() => {
+    // Busca inicial na abertura da tela — setLoading(true) síncrono é o
+    // padrão de todo _client.tsx do repo (estado de carregamento honesto).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadLeads();
   }, [loadLeads]);
 
@@ -171,12 +197,12 @@ export function GraficaClient({
         </div>
         <div className="flex items-center gap-2">
           <Button asChild size="sm" variant="outline">
-            <a href="/app/pipelines">
-              <ClipboardList className="mr-2 size-4" /> Funis
-            </a>
+            <Link href="/app/pipelines">
+              <ClipboardText className="mr-2 size-4" /> Funis
+            </Link>
           </Button>
           <Button onClick={() => void loadLeads()} size="sm" variant="outline">
-            <Rocket className="mr-2 size-4" /> Atualizar
+            <ArrowsClockwise className="mr-2 size-4" /> Atualizar
           </Button>
         </div>
       </header>
@@ -189,7 +215,7 @@ export function GraficaClient({
               <p className="text-xs text-muted-foreground">Total de pedidos</p>
               <p className="text-2xl font-bold">{leads.length}</p>
             </div>
-            <Target className="h-8 w-8 text-muted-foreground" />
+            <Storefront className="h-8 w-8 text-muted-foreground" />
           </div>
         </Card>
         <Card className="p-4">
@@ -200,7 +226,7 @@ export function GraficaClient({
                 {leads.filter((l) => l.arte_status === "pendente").length}
               </p>
             </div>
-            <Image className="h-8 w-8 text-muted-foreground" />
+            <ImageSquare className="h-8 w-8 text-muted-foreground" />
           </div>
         </Card>
         <Card className="p-4">
@@ -211,7 +237,7 @@ export function GraficaClient({
                 {leads.filter((l) => l.producao_status === "em_producao").length}
               </p>
             </div>
-            <Factory className="h-8 w-8 text-muted-foreground" />
+            <Kanban className="h-8 w-8 text-muted-foreground" />
           </div>
         </Card>
         <Card className="p-4">
@@ -222,7 +248,7 @@ export function GraficaClient({
                 {leads.filter((l) => l.producao_status === "entregue").length}
               </p>
             </div>
-            <TrendingUp className="h-8 w-8 text-muted-foreground" />
+            <ChartLineUp className="h-8 w-8 text-muted-foreground" />
           </div>
         </Card>
       </div>
@@ -243,7 +269,14 @@ export function GraficaClient({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {leads.map((lead) => (
+            {loading && (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-4 text-muted-foreground">
+                  Carregando pedidos…
+                </TableCell>
+              </TableRow>
+            )}
+            {!loading && leads.map((lead) => (
               <TableRow key={lead.id}>
                 <TableCell className="font-medium">
                   {lead.title}
@@ -287,7 +320,7 @@ export function GraficaClient({
                 </TableCell>
               </TableRow>
             ))}
-            {leads.length === 0 && (
+            {!loading && leads.length === 0 && (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-4 text-muted-foreground">
                   Nenhum pedido encontrado.
