@@ -3,6 +3,7 @@ import { carteiraDoContato } from "@/lib/carteira/dono";
 import { MOTIVO_DA_RECUSA, recusaNegocioNaCarteiraDeOutro } from "@/lib/carteira/negocio-novo";
 import { traduzir } from "@/lib/i18n/dicionario";
 /**
+ * GET /api/v1/leads — lista leads (paginado por cursor).
  * POST /api/v1/leads — create lead (handler em ./_handler.ts).
  */
 import { randomUUID } from "node:crypto";
@@ -21,9 +22,74 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
 import { createClient } from "@/lib/supabase/server";
 
-import { createLeadHandler } from "./_handler";
+import { createLeadHandler, listLeadsHandler } from "./_handler";
+import { z } from "zod";
 
 export const dynamic = "force-dynamic";
+
+const listarLeadsQuerySchema = z
+  .object({
+    pipeline_id: z.string().uuid().optional(),
+    stage_id: z.string().uuid().optional(),
+    status: z.enum(["open", "won", "lost"]).optional(),
+    owner_user_id: z.string().uuid().optional(),
+    contact_id: z.string().uuid().optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+    cursor: z.string().optional(),
+  })
+  // O client manda organization_id por engano — ignora o extra em vez de 422.
+  .passthrough();
+
+export async function GET(req: NextRequest): Promise<Response> {
+  const requestId = randomUUID();
+
+  // Leitura é agent+: o viewer não entra na tela da gráfica (minRole do menu).
+  const authz = await requireRole("agent", { requestId, resource: "crm_leads" });
+  if (!authz.ok) return authz.response;
+  const { org: activeOrg } = authz;
+
+  const params = Object.fromEntries(new URL(req.url).searchParams.entries());
+  const parsed = listarLeadsQuerySchema.safeParse(params);
+  if (!parsed.success) {
+    return fail("validation_failed", "Query inválida.", 422, {
+      details: parsed.error.flatten() as unknown as Record<string, unknown>,
+      requestId,
+    });
+  }
+  const q = parsed.data;
+
+  const supabase = await createClient();
+
+  try {
+    const result = await listLeadsHandler(
+      supabase,
+      {
+        organization_id: activeOrg.orgId,
+        actor: { type: "user", id: authz.user.id },
+        requestId,
+        idioma: authz.user.idioma,
+      },
+      {
+        pipeline_id: q.pipeline_id,
+        stage_id: q.stage_id,
+        status: q.status,
+        owner_user_id: q.owner_user_id,
+        contact_id: q.contact_id,
+        limit: q.limit ?? 100,
+        cursor: q.cursor ?? null,
+      },
+    );
+    return ok(result.leads, {
+      requestId,
+      meta: { cursor: result.cursor, has_more: result.has_more },
+    });
+  } catch (err) {
+    if (err instanceof ApiError) {
+      return fail(err.code, err.message, err.status, { requestId });
+    }
+    throw err;
+  }
+}
 
 export async function POST(req: NextRequest): Promise<Response> {
   const supportDenied = await requireSupportWrite();

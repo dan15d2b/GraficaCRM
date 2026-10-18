@@ -172,6 +172,7 @@ export const NAV_CATALOG = [
     description: "Visão da gráfica: leads, arte e produção do seu cliente.",
     icon: "Palette",
     group: "atendimento",
+    minRole: "agent",
     sidebar: true,
   },
   {

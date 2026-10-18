@@ -4,7 +4,8 @@ import { idsDeContatosPessoais } from "@/app/api/v1/conversations/_handler";
 /**
  * Core handlers para /api/v1/leads.
  *
- * REST cobre: createLeadHandler (POST), updateLeadHandler (PATCH).
+ * REST cobre: createLeadHandler (POST), updateLeadHandler (PATCH),
+ * listLeadsHandler (GET — tela da gráfica, mesma listagem do MCP).
  * MCP usa: listLeadsHandler, getLeadHandler além dos acima (S-13.04).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -317,7 +318,7 @@ function actorAuditPayload(actor: Actor): {
 }
 
 // ---------------------------------------------------------------------------
-// list (MCP-only por enquanto; sem GET REST nesta wave)
+// list (MCP + GET REST da tela da gráfica)
 // ---------------------------------------------------------------------------
 
 export interface ListLeadsQuery {

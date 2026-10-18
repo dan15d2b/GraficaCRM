@@ -32,6 +32,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 // INSERT — e sem este mock o teste precisaria de um dublê para sete tabelas.
 vi.mock("./_handler", () => ({
   createLeadHandler: vi.fn(async () => ({ id: "lead-novo-0000" })),
+  listLeadsHandler: vi.fn(async () => ({ leads: [], cursor: null, has_more: false })),
 }));
 
 import { createLeadHandler } from "./_handler";
