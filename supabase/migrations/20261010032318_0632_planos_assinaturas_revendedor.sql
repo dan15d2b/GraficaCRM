@@ -1,6 +1,9 @@
 -- migration: 0632 — planos e assinaturas do revendedor (painel central)
 -- Permite ao dono do GraficaCRM gerenciar as gráficas clientes:
 -- plano, status (ativo/suspenso), uso mensal, vencimento.
+-- manifest: PK em revendedor_planos e revendedor_assinaturas — a FK da
+-- assinatura exige constraint única no alvo, e o create original falhava em
+-- banco novo (toda instalação fresca morria nesta migration).
 
 CREATE TABLE IF NOT EXISTS "public"."revendedor_planos" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
@@ -13,7 +16,8 @@ CREATE TABLE IF NOT EXISTS "public"."revendedor_planos" (
     "ativo" boolean NOT NULL DEFAULT true,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    CONSTRAINT "revendedor_planos_preco_positivo" CHECK ("preco_mensal_cents" >= 0)
+    CONSTRAINT "revendedor_planos_preco_positivo" CHECK ("preco_mensal_cents" >= 0),
+    CONSTRAINT "revendedor_planos_pkey" PRIMARY KEY ("id")
 );
 
 ALTER TABLE "public"."revendedor_planos" OWNER TO "postgres";
@@ -38,7 +42,8 @@ CREATE TABLE IF NOT EXISTS "public"."revendedor_assinaturas" (
     ),
     CONSTRAINT "revendedor_assinaturas_dia_valido" CHECK (
         "dia_vencimento" >= 1 AND "dia_vencimento" <= 28
-    )
+    ),
+    CONSTRAINT "revendedor_assinaturas_pkey" PRIMARY KEY ("id")
 );
 
 ALTER TABLE "public"."revendedor_assinaturas" OWNER TO "postgres";
