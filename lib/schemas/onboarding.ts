@@ -20,6 +20,8 @@ export const welcomeSchema = z.object({
    * o próprio negócio em uma linha. Quem pula recebe o quadro genérico.
    */
   o_que_faz: z.string().max(280).optional(),
+  /** Nicho do negócio: Gráfica, Comunicação Visual ou Ambas. */
+  nicho: z.enum(["grafica", "comunicacao_visual", "grafica_comunicacao_visual"]).optional(),
   timezone: z.string().min(1).default("America/Sao_Paulo"),
   accepted_terms_at: z.string().datetime().optional(),
 });

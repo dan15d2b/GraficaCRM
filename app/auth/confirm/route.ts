@@ -8,6 +8,7 @@ import { modoDeCadastro } from "@/lib/auth/politica-de-cadastro";
 import { aplicarConvite } from "@/lib/auth/aplicar-convite";
 import { audit } from "@/lib/audit";
 import { env } from "@/lib/env";
+import { guardLicenseForUser } from "@/lib/auth/license-guard";
 
 /**
  * GET /auth/confirm — troca o token do e-mail por uma sessão.
@@ -241,7 +242,16 @@ async function confirmar({
       payload: decisao.payload,
       requestId,
     });
-    if (aceite.ok) return redirectTo("/app");
+    if (aceite.ok) {
+      // CRMGráfica 2.0 — License Guard
+      if (env.CRMGRAFICA_SKIP_ONBOARDING === "1") {
+        const licenseResult = await guardLicenseForUser(usuario.id, org?.orgId || "");
+        if (!licenseResult.ok) {
+          return redirectTo(`/login?error=${encodeURIComponent(licenseResult.error || "licenca_bloqueada")}`);
+        }
+      }
+      return redirectTo("/app");
+    }
 
     // Convite revogado, ou banco fora: a tela de aceite continua existindo e
     // sabe explicar cada caso. Degradar para ela preserva exatamente o
@@ -294,6 +304,14 @@ async function confirmar({
     metadata: {},
     requestId,
   });
+
+  // CRMGráfica 2.0 — License Guard
+  if (env.CRMGRAFICA_SKIP_ONBOARDING === "1") {
+    const licenseResult = await guardLicenseForUser(usuario.id, org?.orgId || "");
+    if (!licenseResult.ok) {
+      return redirectTo(`/login?error=${encodeURIComponent(licenseResult.error || "licenca_bloqueada")}`);
+    }
+  }
 
   return redirectTo("/onboarding/welcome");
 }

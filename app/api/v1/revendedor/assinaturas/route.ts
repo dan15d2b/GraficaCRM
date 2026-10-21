@@ -7,30 +7,20 @@ import { requireSupportWrite } from "@/lib/impersonate/support";
 import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
 
-import { resolveAuthDual } from "@/lib/api/auth-dual";
-import { requireRole } from "@/lib/auth/require-role";
 import { ok, fail } from "@/lib/api/wrappers";
+import { requirePlatformAdmin } from "@/lib/auth/requirePlatformAdmin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
-  req: NextRequest,
-): Promise<Response> {
+export async function GET(req: NextRequest): Promise<Response> {
   const supportDenied = await requireSupportWrite();
   if (supportDenied) return supportDenied;
 
   const requestId = randomUUID();
+  await requirePlatformAdmin();
 
   const admin = createAdminClient();
-  const authz = await resolveAuthDual(req, {
-    requestId,
-    resource: "revendedor_assinaturas",
-    role: "platform_admin",
-    scope: "mcp:read",
-  });
-  if (!authz.ok) return authz.response;
-
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status") || undefined;
 

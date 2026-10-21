@@ -57,7 +57,7 @@ export async function GET(
   let query = supabase
     .from("catalogo_produtos")
     .select("id, nome, descricao, categoria, unidade, preco_cents, moeda, ativo, created_at, updated_at")
-    .eq("organization_id", authz.org.orgId)
+    .eq("organization_id", authz.organizationId)
     .order("nome", { ascending: true });
 
   if (categoria) query = query.eq("categoria", categoria);
@@ -110,7 +110,7 @@ export async function POST(
   const { data, error } = await supabase
     .from("catalogo_produtos")
     .insert({
-      organization_id: authz.org.orgId,
+      organization_id: authz.organizationId,
       nome: corpo.nome,
       descricao: corpo.descricao ?? null,
       categoria: corpo.categoria,

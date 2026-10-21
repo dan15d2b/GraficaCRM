@@ -49,6 +49,7 @@ import { Clock, PaperPlaneTilt } from "@/lib/ui/icons";
  * com cara de vivo, que é o desfecho que este produto persegue em toda parte.
  */
 interface Props {
+  nicho?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Nomes dos fluxos que a organização já tem — marca o modelo já instalado. */
@@ -65,7 +66,7 @@ function horizonteLegivel(ms: number): string {
   return meses <= 1 ? "1 mês" : `${meses} meses`;
 }
 
-export function ModelosDialog({ open, onOpenChange, nomesExistentes }: Props) {
+export function ModelosDialog({ open, onOpenChange, nomesExistentes, nicho }: Props) {
   const t = useT();
   const router = useRouter();
   const instalar = useInstalarModelo();
@@ -120,13 +121,13 @@ export function ModelosDialog({ open, onOpenChange, nomesExistentes }: Props) {
           <DialogTitle>{t("Modelos prontos")}</DialogTitle>
           <DialogDescription>
             {t(
-              "Fluxos com os textos já escritos, para as quatro vezes em que um paciente some no meio do caminho. Instalar não manda mensagem para ninguém: o fluxo nasce como rascunho para você revisar.",
+              "Fluxos com os textos já escritos, para as vezes em que um cliente some no meio do caminho. Instalar não manda mensagem para ninguém: o fluxo nasce como rascunho para você revisar.",
             )}
           </DialogDescription>
         </DialogHeader>
 
         <ul className="flex flex-col gap-3">
-          {MODELOS_DE_FOLLOWUP.map((modelo) => {
+          {MODELOS_DE_FOLLOWUP.filter((m) => !nicho || m.nicho === nicho).map((modelo) => {
             const jaInstalado = nomesExistentes.includes(modelo.nome);
             const etapaEscolhida = etapaPorModelo[modelo.id];
             const faltaEtapa = modelo.pedeEtapa && !etapaEscolhida;

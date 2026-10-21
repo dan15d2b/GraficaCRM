@@ -3,6 +3,7 @@
  */
 import { NextResponse } from 'next/server';
 import { PERMISSION_MATRIX, type Role } from '@/lib/permissions';
+import { createServerClient } from '@/lib/supabase/server';
 
 interface User {
   id: string;
@@ -29,7 +30,25 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  // Verifica se há token de sessão
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader) {
+    return NextResponse.json(
+      { success: false, error: 'Não autorizado' },
+      { status: 401 }
+    );
+  }
+
   const body = await request.json();
+
+  // Validação básica
+  if (!body.name || !body.email) {
+    return NextResponse.json(
+      { success: false, error: 'Nome e e-mail são obrigatórios' },
+      { status: 400 }
+    );
+  }
+
   const newUser: User = {
     id: String(users.length + 1),
     name: body.name,
@@ -38,7 +57,7 @@ export async function POST(request: Request) {
     active: true,
   };
   users.push(newUser);
-  
+
   return NextResponse.json({
     success: true,
     user: newUser,

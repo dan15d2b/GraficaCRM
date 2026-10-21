@@ -19,6 +19,7 @@ import { NewFlowDialog } from "./NewFlowDialog";
 import { RenameFollowupFlowButton } from "./RenameFollowupFlowButton";
 
 interface Props {
+  nicho?: string;
   initialData: FollowupFlowPointerRow[];
   canWrite: boolean;
   /** Recorte por superfície. Ausente = todos (comportamento atual). */
@@ -33,7 +34,7 @@ function formatUpdatedAt(iso: string, idioma: string): string {
   });
 }
 
-export function FlowsList({ initialData, canWrite, surface }: Props) {
+export function FlowsList({ initialData, canWrite, surface, nicho }: Props) {
   const tagDoIdioma = useTagDeIdioma();
   const t = useT();
   const { data } = useFollowupFlows({ initialData, ...(surface ? { surface } : {}) });
@@ -73,6 +74,7 @@ export function FlowsList({ initialData, canWrite, surface }: Props) {
       <NewFlowDialog open={dialogOpen} onOpenChange={setDialogOpen} surface={surface} />
       {!deAtendimento && (
         <ModelosDialog
+          nicho={nicho}
           open={modelosOpen}
           onOpenChange={setModelosOpen}
           nomesExistentes={flows.map((f) => f.name)}

@@ -122,6 +122,76 @@ CREATE POLICY "Organization admins manage all" ON organizations
     EXISTS (SELECT 1 FROM users WHERE users.organization_id = organizations.id AND users.id = auth.uid()::uuid AND users.role = 'admin')
   );
 
+-- RLS policies for clients
+CREATE POLICY "Users can view own org clients" ON clients
+  FOR SELECT USING (auth.uid()::uuid IN (SELECT id FROM users WHERE users.organization_id = clients.organization_id));
+
+CREATE POLICY "Users can insert own org clients" ON clients
+  FOR INSERT WITH CHECK (auth.uid()::uuid IN (SELECT id FROM users WHERE users.organization_id = clients.organization_id));
+
+CREATE POLICY "Users can update own org clients" ON clients
+  FOR UPDATE USING (auth.uid()::uuid IN (SELECT id FROM users WHERE users.organization_id = clients.organization_id));
+
+CREATE POLICY "Users can delete own org clients" ON clients
+  FOR DELETE USING (auth.uid()::uuid IN (SELECT id FROM users WHERE users.organization_id = clients.organization_id));
+
+-- RLS policies for orders
+CREATE POLICY "Users can view own org orders" ON orders
+  FOR SELECT USING (auth.uid()::uuid IN (SELECT id FROM users WHERE users.organization_id = orders.organization_id));
+
+CREATE POLICY "Users can insert own org orders" ON orders
+  FOR INSERT WITH CHECK (auth.uid()::uuid IN (SELECT id FROM users WHERE users.organization_id = orders.organization_id));
+
+CREATE POLICY "Users can update own org orders" ON orders
+  FOR UPDATE USING (auth.uid()::uuid IN (SELECT id FROM users WHERE users.organization_id = orders.organization_id));
+
+CREATE POLICY "Users can delete own org orders" ON orders
+  FOR DELETE USING (auth.uid()::uuid IN (SELECT id FROM users WHERE users.organization_id = orders.organization_id));
+
+-- RLS policies for order_items
+CREATE POLICY "Users can view own org order_items" ON order_items
+  FOR SELECT USING (
+    auth.uid()::uuid IN (
+      SELECT id FROM users WHERE users.organization_id = orders.organization_id
+      JOIN orders ON orders.id = order_items.order_id
+    )
+  );
+
+CREATE POLICY "Users can insert own org order_items" ON order_items
+  FOR INSERT WITH CHECK (
+    auth.uid()::uuid IN (
+      SELECT id FROM users WHERE users.organization_id = orders.organization_id
+      JOIN orders ON orders.id = order_items.order_id
+    )
+  );
+
+CREATE POLICY "Users can update own org order_items" ON order_items
+  FOR UPDATE USING (
+    auth.uid()::uuid IN (
+      SELECT id FROM users WHERE users.organization_id = orders.organization_id
+      JOIN orders ON orders.id = order_items.order_id
+    )
+  );
+
+CREATE POLICY "Users can delete own org order_items" ON order_items
+  FOR DELETE USING (
+    auth.uid()::uuid IN (
+      SELECT id FROM users WHERE users.organization_id = orders.organization_id
+      JOIN orders ON orders.id = order_items.order_id
+    )
+  );
+
+-- RLS policies for license_keys
+CREATE POLICY "Admins can view license keys" ON license_keys
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid()::uuid AND users.role = 'admin')
+  );
+
+CREATE POLICY "Admins can manage license keys" ON license_keys
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid()::uuid AND users.role = 'admin')
+  );
+
 -- Trigger para updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

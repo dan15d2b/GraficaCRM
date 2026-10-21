@@ -11,6 +11,7 @@ import { safeNext } from "@/lib/auth/safe-next";
 import { audit } from "@/lib/audit";
 import { marcaDaSaida } from "@/lib/branding/saida";
 import { env } from "@/lib/env";
+import { guardLicenseForUser } from "@/lib/auth/license-guard";
 
 /**
  * GET /auth/callback — a VOLTA da entrada com Google (issue #1388).
@@ -185,6 +186,13 @@ export async function GET(request: NextRequest) {
     });
     // ENTRADA: o destino é `/app` (ou o `next` pedido) — tela COM sessão, logo
     // ponte e não 302 (issue #1646).
+    // CRMGráfica 2.0 — License Guard: verifica licença antes de entrar no app
+    if (env.CRMGRAFICA_SKIP_ONBOARDING === "1") {
+      const licenseResult = await guardLicenseForUser(usuario.id, org.orgId);
+      if (!licenseResult.ok) {
+        return redirectTo(`/login?error=${encodeURIComponent(licenseResult.error || "licenca_bloqueada")}`);
+      }
+    }
     return await paraTelaAutenticada(safeNext(next, "/app"));
   }
 
@@ -233,6 +241,13 @@ export async function GET(request: NextRequest) {
       requestId,
     });
     // Convite aceito: a pessoa cai autenticada no app, pela ponte.
+    // CRMGráfica 2.0 — License Guard
+    if (env.CRMGRAFICA_SKIP_ONBOARDING === "1") {
+      const licenseResult = await guardLicenseForUser(usuario.id, org.orgId);
+      if (!licenseResult.ok) {
+        return redirectTo(`/login?error=${encodeURIComponent(licenseResult.error || "licenca_bloqueada")}`);
+      }
+    }
     if (aceite.ok) return await paraTelaAutenticada("/app");
 
     // Convite revogado, ou banco fora: a tela de aceite continua existindo e
@@ -283,5 +298,12 @@ export async function GET(request: NextRequest) {
     requestId,
   });
 
+  // CRMGráfica 2.0 — License Guard
+  if (env.CRMGRAFICA_SKIP_ONBOARDING === "1") {
+    const licenseResult = await guardLicenseForUser(usuario.id, org.orgId);
+    if (!licenseResult.ok) {
+      return redirectTo(`/login?error=${encodeURIComponent(licenseResult.error || "licenca_bloqueada")}`);
+    }
+  }
   return await paraTelaAutenticada("/onboarding/welcome");
 }

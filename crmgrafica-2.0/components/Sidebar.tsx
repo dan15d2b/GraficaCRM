@@ -8,7 +8,7 @@ import {
   MessageCircle, LayoutGrid, FileText, Package, Truck, AlertCircle,
   TrendingUp, BarChart3, Building2, ShieldCheck, Flag, Phone,
   RefreshCw, Tag, Bell, ChevronDown, ChevronRight, Maximize2, Minimize2,
-  Home
+  Home, Search
 } from "lucide-react";
 
 interface NavItem {
@@ -23,15 +23,14 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/app/inbox", label: "Conversas", icon: Inbox, group: "Atendimento" },
   { href: "/app/radar", label: "Radar", icon: AlertCircle, group: "Atendimento" },
   { href: "/app/agenda", label: "Agenda", icon: Calendar, group: "Atendimento" },
-  { href: "/app/kanban", label: "Funis", icon: Kanban, group: "CRM" },
   { href: "/app/contacts", label: "Contatos", icon: Users, group: "CRM" },
   { href: "/app/companies", label: "Empresas", icon: Building2, group: "CRM" },
   { href: "/app/products", label: "Produtos", icon: Package, group: "CRM" },
   { href: "/app/proposals", label: "Propostas", icon: FileText, group: "CRM" },
   { href: "/app/campaigns", label: "Campanhas", icon: Flag, group: "CRM" },
   { href: "/app/tasks", label: "Tarefas", icon: Clipboard, group: "CRM" },
+  { href: "/app/prospecting", label: "Prospecção", icon: Search, group: "CRM" },
   { href: "/app/producao/kanban", label: "Quadro Produção", icon: Printer, group: "Produção" },
-  { href: "/app/grafica", label: "Gráfica", icon: Scissors, group: "Produção" },
   { href: "/app/financeiro", label: "Financeiro", icon: Wallet, group: "Financeiro" },
   { href: "/app/metrics", label: "Métricas", icon: BarChart3, group: "Análise" },
   { href: "/app/ia/agents", label: "Agentes IA", icon: Bot, group: "Inteligência" },

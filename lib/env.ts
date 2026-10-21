@@ -633,6 +633,14 @@ const schema = z.object({
    */
   APP_ACCENT_HEX: z.string().optional().default(""),
 
+  // CRMGráfica 2.0 — knobs de nicho e licenciamento
+  /** Pula onboarding e vai direto para /app após login. Ativar em instalações gráfica. */
+  CRMGRAFICA_SKIP_ONBOARDING: z.string().optional().default(""),
+  /** URL do servidor de validação de licença (self-host ou cloud). Vazio = dev local. */
+  LICENSE_SERVER_URL: z.string().optional().default(""),
+  /** Intervalo em horas entre validações de licença (padrão: 24). */
+  LICENSE_VALIDATION_INTERVAL_HOURS: z.string().optional().default("24"),
+
   /**
    * Com o que a instalação NASCE quanto a cadastro: `aberto` (padrão),
    * `com_aprovacao` ou `so_convite`. Vazio = `aberto`, que é como o produto

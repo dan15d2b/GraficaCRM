@@ -1,8 +1,8 @@
 {
-  "name": "deskcomm-crm",
-  "version": "0.1.0",
+  "name": "crmgrafica-2.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "DeskcommCRM — sistema operacional de vendas open source com agentes de IA nativos e WhatsApp (WAHA). Self-hosted, multi-tenant, LGPD by-design.",
+  "description": "CRMGráfica 2.0 — sistema operacional de vendas para gráficas e comunicação visual com agentes de IA nativos e WhatsApp (WAHA). Self-hosted, multi-tenant, LGPD by-design.",
   "engines": {
     "node": ">=22"
   },
@@ -93,6 +93,7 @@
     "pdfjs-dist": "^6.3.289",
     "pg": "^8.23.0",
     "qrcode": "^1.5.4",
+    "qrcode.react": "^4.2.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-hook-form": "^7.88.0",

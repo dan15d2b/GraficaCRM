@@ -105,7 +105,6 @@ export function WelcomeForm({
       <div className="space-y-2">
         <Label htmlFor="nicho">{t("Qual o nicho do seu negócio?")}</Label>
         <Select
-          id="nicho"
           onValueChange={(v) => setNicho(v as typeof nicho)}
           defaultValue={nicho || undefined}
         >

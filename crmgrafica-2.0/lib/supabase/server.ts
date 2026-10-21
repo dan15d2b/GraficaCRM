@@ -9,8 +9,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 export const createServerClient = () => {
   if (!supabaseUrl || !supabaseServiceKey) {
-    console.warn('Supabase credentials not configured');
-    return null;
+    throw new Error('Supabase credentials not configured — set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
   }
   return createClient<Database>(supabaseUrl, supabaseServiceKey, {
     auth: { persistSession: false },

@@ -1,6 +1,6 @@
 /**
  * CRMGráfica 2.0 — Configuração de ambiente
- * 
+ *
  * Variáveis obrigatórias para operação:
  * - DATABASE_URL: URL de conexão com o banco PostgreSQL
  * - NEXTAUTH_SECRET: Secret para autenticação
@@ -22,28 +22,28 @@ export const env = z
   .object({
     // Database
     DATABASE_URL: requiredAlways("DATABASE_URL"),
-    
+
     // Auth
     NEXTAUTH_URL: required("NEXTAUTH_URL"),
     NEXTAUTH_SECRET: requiredAlways("NEXTAUTH_SECRET"),
-    
+
     // License
     LICENSE_SERVER_URL: requiredAlways("LICENSE_SERVER_URL"),
     LICENSE_VALIDATION_INTERVAL: z.string().default("24"),
-    
+
     // Branding (sem verde por padrão)
     APP_NAME: z.string().default("CRMGráfica"),
     APP_LOGO_URL: z.string().optional(),
     APP_ACCENT_HEX: z.string().default("#2563EB"), // Azul profissional como padrão
-    
+
     // AI Agents
     AI_PROVIDER: z.string().default("anthropic"),
     AI_MODEL: z.string().default("claude-sonnet-4"),
-    
+
     // WhatsApp (WAHA)
     WAHA_URL: z.string().optional(),
     WAHA_TOKEN: z.string().optional(),
-    
+
     // Security
     ENCRYPTION_KEY: requiredAlways("ENCRYPTION_KEY"),
     INTERNAL_CRON_SECRET: requiredAlways("INTERNAL_CRON_SECRET"),

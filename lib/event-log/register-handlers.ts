@@ -101,3 +101,8 @@ export function ensureHandlersRegistered(): void {
   registerHandler(conversaoDeEtapaMetaHandler);
   _registered = true;
 }
+
+// CRMGráfica 2.0 — Handler de status de produção
+import { productionStatusHandler } from "@/lib/event-log/handlers/production-status.handler";
+registerHandler(productionStatusHandler);
+

@@ -72,7 +72,7 @@ export async function PATCH(
     .from("catalogo_produtos")
     .update(corpo)
     .eq("id", produtoId)
-    .eq("organization_id", authz.org.orgId)
+    .eq("organization_id", authz.organizationId)
     .select()
     .maybeSingle();
 
@@ -113,7 +113,7 @@ export async function DELETE(
     .from("catalogo_produtos")
     .delete()
     .eq("id", produtoId)
-    .eq("organization_id", authz.org.orgId);
+    .eq("organization_id", authz.organizationId);
 
   if (error) {
     return fail("db_error", error.message, 500, { requestId });

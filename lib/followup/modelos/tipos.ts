@@ -25,7 +25,7 @@ import type { TriggerConfig } from "@/lib/followup/api-schemas";
 import type { FlowGraph } from "@/lib/followup/graph-schema";
 
 /** Para qual tipo de negócio o modelo foi escrito. Hoje só clínica; o catálogo já é plural. */
-export const NICHOS_DE_MODELO = ["clinica"] as const;
+export const NICHOS_DE_MODELO = ["clinica", "grafica"] as const;
 export type NichoDeModelo = (typeof NICHOS_DE_MODELO)[number];
 
 /** O que a pessoa precisa escolher na tela para o modelo virar um fluxo instalável. */

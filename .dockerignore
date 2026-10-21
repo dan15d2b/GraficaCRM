@@ -30,3 +30,6 @@ scratchpad
 evidence
 .superpowers
 *.tsbuildinfo
+
+# Kit de nicho CRMGráfica (docs/scripts) — não é código do app Deskcomm.
+crmgrafica-2.0

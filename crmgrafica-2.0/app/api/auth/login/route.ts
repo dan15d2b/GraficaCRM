@@ -1,78 +1,83 @@
 /**
- * CRMGráfica 2.0 — Rota de Login
- * POST /api/auth/login
- * 
- * Autenticação com email/senha + validação de licença.
+ * CRMGráfica 2.0 — API de Login
  */
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { z } from 'zod';
+
+// Usuários mock (em produção: Supabase Auth)
+const users = [
+  {
+    id: '1',
+    email: 'britodaniel797@gmail.com',
+    password: '123456',
+    name: 'Daniel Brito',
+    role: 'admin' as const,
+    organizationId: 'demo-org',
+    active: true,
+  },
+  {
+    id: '2',
+    email: 'admin@grafica.com',
+    password: 'admin123',
+    name: 'Administrador',
+    role: 'admin' as const,
+    organizationId: 'demo-org',
+    active: true,
+  },
+];
 
 const loginSchema = z.object({
   email: z.string().email('E-mail inválido'),
   password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
 });
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const body = await request.json();
     const validated = loginSchema.parse(body);
-
-    // TODO: Implementar autenticação real com Supabase Auth
-    // Por enquanto, simulação para desenvolvimento
     
-    const mockUser = {
-      id: 'demo-user-1',
-      email: validated.email,
-      name: 'Usuário Demo',
-      role: 'admin' as const,
-      organizationId: 'demo-org',
-    };
-
-    // Simula verificação de licença
-    const licenseValid = process.env.LICENSE_SERVER_URL 
-      ? await validateLicense(mockUser.organizationId)
-      : true;
-
-    if (!licenseValid) {
+    const user = users.find(u => u.email === validated.email && u.password === validated.password);
+    
+    if (!user) {
       return NextResponse.json(
-        { error: 'Licença inválida ou expirada' },
+        { success: false, error: 'E-mail ou senha incorretos' },
+        { status: 401 }
+      );
+    }
+    
+    if (!user.active) {
+      return NextResponse.json(
+        { success: false, error: 'Conta desativada. Contate o suporte.' },
         { status: 403 }
       );
     }
-
-    // Resposta bem-sucedida
+    
+    // Simula token de sessão
+    const token = Buffer.from(JSON.stringify({ userId: user.id, email: user.email })).toString('base64');
+    
     return NextResponse.json({
       success: true,
       user: {
-        id: mockUser.id,
-        email: mockUser.email,
-        name: mockUser.name,
-        role: mockUser.role,
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        organizationId: user.organizationId,
       },
-      message: 'Login realizado com sucesso',
+      token,
+      licenseKey: 'DEMO-2024-CRMG',
+      message: 'Login realizado com sucesso!',
     });
-
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Dados inválidos', details: error.issues },
+        { success: false, error: 'Dados inválidos' },
         { status: 400 }
       );
     }
-    
     return NextResponse.json(
-      { error: 'Erro interno no servidor' },
+      { success: false, error: 'Erro no servidor' },
       { status: 500 }
     );
   }
-}
-
-/**
- * Valida licença contra o servidor (simulado)
- */
-async function validateLicense(orgId: string): Promise<boolean> {
-  // Em produção, chamar LICENSE_SERVER_URL
-  // Por enquanto, retorna true para demo
-  console.log(`[License] Validando licença para org: ${orgId}`);
-  return true;
 }

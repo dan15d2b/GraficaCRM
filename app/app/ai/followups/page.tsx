@@ -36,6 +36,17 @@ export default async function FollowupFlowsPage() {
   const flows = (data ?? []) as unknown as FollowupFlowPointerRow[];
   const canWrite = ROLE_RANK[activeOrg.role] >= ROLE_RANK.manager;
 
+  // Busca nicho da organização para filtrar modelos de follow-up
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("settings")
+    .eq("id", activeOrg.orgId)
+    .maybeSingle();
+
+  const settings = (org?.settings as Record<string, unknown> | null) ?? {};
+  const graficaCfg = settings.grafica as { nicho?: string } | undefined | null;
+  const nicho = (graficaCfg?.nicho || "grafica").replace("grafica_", "");
+
   return (
     <div className="flex h-full flex-col gap-6 p-6">
       <header className="flex flex-wrap items-end justify-between gap-2">
@@ -52,7 +63,7 @@ export default async function FollowupFlowsPage() {
           <TabsTrigger value="fila">Fila</TabsTrigger>
         </TabsList>
         <TabsContent value="fluxos">
-          <FlowsList initialData={flows} canWrite={canWrite} />
+          <FlowsList initialData={flows} canWrite={canWrite} nicho={nicho} />
         </TabsContent>
         <TabsContent value="fila">
           <QueueTab canWrite={canWrite} />

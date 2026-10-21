@@ -7,12 +7,14 @@ import { requireSupportWrite } from "@/lib/impersonate/support";
  */
 import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
-
-import { resolveAuthDual } from "@/lib/api/auth-dual";
-import { requireRole } from "@/lib/auth/require-role";
-import { ok, fail } from "@/lib/api/wrappers";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { z } from "zod";
+
+import { ok, fail } from "@/lib/api/wrappers";
+import {
+  falhaDaEscritaDePlatformAdmin,
+  requirePlatformAdminEscrita,
+} from "@/lib/auth/requirePlatformAdmin";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -35,14 +37,11 @@ export async function PATCH(
   const requestId = randomUUID();
   const { id: assinaturaId } = await ctx.params;
 
-  const admin = createAdminClient();
-  const authz = await resolveAuthDual(req, {
-    requestId,
-    resource: "revendedor_assinaturas",
-    role: "platform_admin",
-    scope: "mcp:write",
-  });
-  if (!authz.ok) return authz.response;
+  try {
+    await requirePlatformAdminEscrita();
+  } catch (err) {
+    return falhaDaEscritaDePlatformAdmin(err, requestId);
+  }
 
   let corpo;
   try {
@@ -57,6 +56,7 @@ export async function PATCH(
     throw err;
   }
 
+  const admin = createAdminClient();
   const { data, error } = await admin
     .from("revendedor_assinaturas")
     .update(corpo)

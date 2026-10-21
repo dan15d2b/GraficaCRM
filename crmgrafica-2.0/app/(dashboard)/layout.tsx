@@ -1,5 +1,5 @@
 /**
- * CRMGráfica 2.0 — Layout principal do dashboard
+ * CRMGráfica 2.0 — Layout do painel (autenticado)
  */
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
@@ -15,19 +15,19 @@ export const metadata: Metadata = {
   description: 'Sistema de gestão comercial para gráficas e comunicação visual',
 };
 
-export default function RootLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider>
           <LicenseGuard>
             <div className="flex h-screen bg-slate-50">
               <Sidebar />
-              <main className="flex-1 overflow-auto">
+              <main className="flex-1 ml-64 overflow-auto">
                 {children}
               </main>
             </div>

@@ -1,13 +1,17 @@
 /**
  * CRMGráfica 2.0 — Guardião de Licenciamento
- * 
+ *
  * Verifica a validade da licença antes de permitir acesso ao sistema.
+ * A chave de licença é armazenada em localStorage pelo usuário no login.
  */
 'use client';
 
 import { useEffect, useState } from 'react';
 import { getLicenseClient } from '@/lib/license';
 import { useRouter } from 'next/navigation';
+
+const LICENSE_STORAGE_KEY = 'crmgrafica_license_key';
+const ORG_STORAGE_KEY = 'crmgrafica_org_id';
 
 export function LicenseGuard({ children }: { children: React.ReactNode }) {
   const [isValid, setIsValid] = useState<boolean | null>(null);
@@ -18,21 +22,36 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
     async function checkLicense() {
       try {
         const licenseClient = getLicenseClient();
-        // TODO: Buscar licença do storage/localStorage
-        const result = await licenseClient.validate('DEMO_KEY', 'demo-org');
-        
+        // Busca a licença salva pelo usuário no login
+        const storedKey = localStorage.getItem(LICENSE_STORAGE_KEY);
+        const storedOrg = localStorage.getItem(ORG_STORAGE_KEY);
+
+        if (!storedKey || !storedOrg) {
+          setWarning('Licença não encontrada. Faça login para continuar.');
+          setIsValid(false);
+          return;
+        }
+
+        const result = await licenseClient.validate(storedKey, storedOrg);
+
         if (result.success && result.license) {
           if (result.license.blocked) {
             setWarning(result.license.blockedReason || 'Licença bloqueada');
             setIsValid(false);
-          } else if (result.license.expiresAt < new Date()) {
-            setWarning('Licença expirada. Entre em contato com o suporte.');
-            setIsValid(false);
           } else {
-            setIsValid(true);
+            // Tenta comparar como Date; se for string ISO, converte
+            const expiresAt = result.license.expiresAt instanceof Date
+              ? result.license.expiresAt
+              : new Date(result.license.expiresAt);
+            if (expiresAt < new Date()) {
+              setWarning('Licença expirada. Entre em contato com o suporte.');
+              setIsValid(false);
+            } else {
+              setIsValid(true);
+            }
           }
         } else {
-          setWarning('Licença não encontrada. Insira sua chave de ativação.');
+          setWarning(result.error || 'Licença não encontrada. Insira sua chave de ativação.');
           setIsValid(false);
         }
       } catch (error) {

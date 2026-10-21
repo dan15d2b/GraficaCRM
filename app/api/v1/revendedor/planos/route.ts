@@ -7,12 +7,15 @@ import { requireSupportWrite } from "@/lib/impersonate/support";
  */
 import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
-
-import { resolveAuthDual } from "@/lib/api/auth-dual";
-import { requireRole } from "@/lib/auth/require-role";
-import { ok, fail } from "@/lib/api/wrappers";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { z } from "zod";
+
+import { ok, fail } from "@/lib/api/wrappers";
+import {
+  falhaDaEscritaDePlatformAdmin,
+  requirePlatformAdmin,
+  requirePlatformAdminEscrita,
+} from "@/lib/auth/requirePlatformAdmin";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -26,23 +29,14 @@ const criarPlanoSchema = z.object({
   ativo: z.boolean().default(true),
 });
 
-export async function GET(
-  req: NextRequest,
-): Promise<Response> {
+export async function GET(_req: NextRequest): Promise<Response> {
   const supportDenied = await requireSupportWrite();
   if (supportDenied) return supportDenied;
 
   const requestId = randomUUID();
+  await requirePlatformAdmin();
 
   const admin = createAdminClient();
-  const authz = await resolveAuthDual(req, {
-    requestId,
-    resource: "revendedor_planos",
-    role: "platform_admin",
-    scope: "mcp:read",
-  });
-  if (!authz.ok) return authz.response;
-
   const { data, error } = await admin
     .from("revendedor_planos")
     .select("*")
@@ -55,22 +49,17 @@ export async function GET(
   return ok(data ?? [], { requestId });
 }
 
-export async function POST(
-  req: NextRequest,
-): Promise<Response> {
+export async function POST(req: NextRequest): Promise<Response> {
   const supportDenied = await requireSupportWrite();
   if (supportDenied) return supportDenied;
 
   const requestId = randomUUID();
 
-  const admin = createAdminClient();
-  const authz = await resolveAuthDual(req, {
-    requestId,
-    resource: "revendedor_planos",
-    role: "platform_admin",
-    scope: "mcp:write",
-  });
-  if (!authz.ok) return authz.response;
+  try {
+    await requirePlatformAdminEscrita();
+  } catch (err) {
+    return falhaDaEscritaDePlatformAdmin(err, requestId);
+  }
 
   let corpo;
   try {
@@ -85,6 +74,7 @@ export async function POST(
     throw err;
   }
 
+  const admin = createAdminClient();
   const { data, error } = await admin
     .from("revendedor_planos")
     .insert({

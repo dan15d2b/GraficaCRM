@@ -4,11 +4,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Printer } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Printer, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const router = useRouter();
+  const [email, setEmail] = useState('britodaniel797@gmail.com');
+  const [password, setPassword] = useState('123456');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -23,11 +26,14 @@ export default function LoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-
       const data = await res.json();
-      
+
       if (data.success) {
-        window.location.href = '/';
+        localStorage.setItem('crmgrafica_token', data.token);
+        localStorage.setItem('crmgrafica_user', JSON.stringify(data.user));
+        localStorage.setItem('crmgrafica_license_key', data.licenseKey || 'DEMO-2024-CRMG');
+        localStorage.setItem('crmgrafica_org_id', data.user.organizationId);
+        router.push('/');
       } else {
         setError(data.error || 'Erro ao fazer login');
       }
@@ -39,60 +45,61 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 mb-4 shadow-lg shadow-blue-600/30">
-            <Printer className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-blue-600 mb-4 shadow-lg shadow-blue-600/30">
+            <Printer className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-            CRMGráfica
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2">
-            Sistema de gestão para gráficas
-          </p>
+          <h1 className="text-4xl font-bold text-white mb-2">CRMGráfica</h1>
+          <p className="text-blue-300">Sistema de gestão para gráficas</p>
         </div>
 
         {/* Card */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-8">
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-6">
-            Entrar no sistema
-          </h2>
+        <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-8 shadow-2xl">
+          <h2 className="text-xl font-semibold text-white mb-6">Entrar no sistema</h2>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              <label className="block text-sm font-medium text-blue-200 mb-2">
                 E-mail
               </label>
               <input
-                id="email"
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-blue-200/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="seu@email.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              <label className="block text-sm font-medium text-blue-200 mb-2">
                 Senha
               </label>
-              <input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-blue-200/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-300 hover:text-white"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
 
             {error && (
-              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+              <div className="p-3 rounded-lg bg-red-500/20 border border-red-500/30 text-red-200 text-sm">
                 {error}
               </div>
             )}
@@ -100,7 +107,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -113,14 +120,14 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-800">
-            <p className="text-center text-sm text-slate-500 dark:text-slate-400">
-              Demo: use qualquer e-mail e senha
+          <div className="mt-6 pt-6 border-t border-white/10">
+            <p className="text-center text-sm text-blue-200">
+              Acesso liberado para demonstração
             </p>
           </div>
         </div>
 
-        <p className="text-center text-xs text-slate-400 dark:text-slate-600 mt-6">
+        <p className="text-center text-xs text-blue-300/50 mt-6">
           CRMGráfica 2.0 — © 2026 Todos os direitos reservados
         </p>
       </div>
