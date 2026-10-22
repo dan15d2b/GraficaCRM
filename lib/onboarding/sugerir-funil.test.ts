@@ -96,7 +96,7 @@ describe("achar o JSON no meio da resposta", () => {
 
 describe("sugerir", () => {
   it("usa a proposta da IA quando ela serve", async () => {
-    const s = await sugerirFunil(CTX, responde(BOM));
+    const s = await sugerirFunil(CTX, undefined, responde(BOM));
     expect(s.origem).toBe("ia");
     expect(s.origem === "ia" && s.proposta.nome).toBe("Agendamentos");
   });
@@ -104,7 +104,7 @@ describe("sugerir", () => {
   it("cai no pacote do RAMO quando o modelo não responde JSON", async () => {
     // E o pacote é o da clínica, não o genérico: quem já disse o que faz não
     // deve receber o quadro de "outro tipo de negócio".
-    const s = await sugerirFunil(CTX, responde("Desculpe, não entendi."));
+    const s = await sugerirFunil(CTX, undefined, responde("Desculpe, não entendi."));
     expect(s.origem).toBe("pacote");
     expect(s.origem === "pacote" && s.pacote.id).toBe("clinica");
     expect(s.origem === "pacote" && s.porque).toBeTruthy();
@@ -120,7 +120,7 @@ describe("sugerir", () => {
         { nome: "D", passo: "lost" },
       ],
     });
-    const s = await sugerirFunil(CTX, responde(semGanho));
+    const s = await sugerirFunil(CTX, undefined, responde(semGanho));
     expect(s.origem).toBe("pacote");
     expect(s.origem === "pacote" && s.porque).toMatch(/fechado/i);
   });
@@ -128,7 +128,7 @@ describe("sugerir", () => {
   it("a chave sem saldo vira pacote + motivo, nunca uma tela quebrada", async () => {
     // É o desfecho mais provável de todos: a pessoa acabou de colar uma chave
     // que nunca gerou um token.
-    const s = await sugerirFunil(CTX, async () => {
+    const s = await sugerirFunil(CTX, undefined, async () => {
       throw new Error("insufficient_quota");
     });
     expect(s.origem).toBe("pacote");
@@ -140,7 +140,7 @@ describe("sugerir", () => {
     // e-commerce que o gatilho semeou — o defeito que este passo veio corrigir.
     const respostas = ["", "não", "{}", '{"etapas":[]}', BOM];
     for (const r of respostas) {
-      const s = await sugerirFunil(CTX, responde(r));
+      const s = await sugerirFunil(CTX, undefined, responde(r));
       const etapas = s.origem === "ia" ? s.proposta.etapas : s.pacote.proposta.etapas;
       expect(etapas.length, `resposta ${JSON.stringify(r)}`).toBeGreaterThanOrEqual(4);
     }

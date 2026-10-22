@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/server";
-import { ensureTenantForUser } from "@/lib/auth/provision";
+import { ensureTenantForUser, vinculoAtivo } from "@/lib/auth/provision";
 import { decidirConviteDoSignup } from "@/lib/auth/convite-no-signup";
 import { modoDeCadastro } from "@/lib/auth/politica-de-cadastro";
 import { aplicarConvite } from "@/lib/auth/aplicar-convite";
@@ -226,6 +226,12 @@ async function confirmar({
     return redirectTo("/login?error=convite_invalido");
   }
 
+  let organizacaoId: string | null;
+  try {
+    organizacaoId = await vinculoAtivo(usuario.id);
+  } catch {
+    organizacaoId = null;
+  }
   if (decisao.tipo === "convite") {
     // TERMINAR O SERVIÇO. Aqui já se sabe tudo o que o botão "Aceitar convite"
     // exigia — e com garantia mais forte: o token verificou (via
@@ -245,7 +251,7 @@ async function confirmar({
     if (aceite.ok) {
       // CRMGráfica 2.0 — License Guard
       if (env.CRMGRAFICA_SKIP_ONBOARDING === "1") {
-        const licenseResult = await guardLicenseForUser(usuario.id, org?.orgId || "");
+        const licenseResult = await guardLicenseForUser(usuario.id, organizacaoId || "");
         if (!licenseResult.ok) {
           return redirectTo(`/login?error=${encodeURIComponent(licenseResult.error || "licenca_bloqueada")}`);
         }
@@ -307,7 +313,7 @@ async function confirmar({
 
   // CRMGráfica 2.0 — License Guard
   if (env.CRMGRAFICA_SKIP_ONBOARDING === "1") {
-    const licenseResult = await guardLicenseForUser(usuario.id, org?.orgId || "");
+    const licenseResult = await guardLicenseForUser(usuario.id, organizacaoId || "");
     if (!licenseResult.ok) {
       return redirectTo(`/login?error=${encodeURIComponent(licenseResult.error || "licenca_bloqueada")}`);
     }
