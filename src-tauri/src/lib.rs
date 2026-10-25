@@ -7,7 +7,7 @@ use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 /// Returns the path to the embedded static frontend.
 fn static_dir(app_handle: &tauri::AppHandle) -> PathBuf {
     app_handle
-        .path_resolver()
+        .path()
         .app_data_dir()
         .expect("app data dir unavailable")
         .join("crmgrafica")
