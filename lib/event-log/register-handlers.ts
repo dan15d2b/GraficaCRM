@@ -33,6 +33,7 @@ import { comandaDoGanhoHandler } from "@/lib/financeiro/comanda-do-ganho.handler
 import { avisoDeCasoAoSuporteHandler } from "@/lib/escalacao/aviso-ao-suporte.handler";
 import { avisoDePropostaNoWhatsAppHandler } from "@/lib/propostas/aviso-no-whatsapp.handler";
 import { cobrancaSinalHandler } from "@/lib/cobranca/sinal.handler";
+import { productionStatusHandler } from "@/lib/event-log/handlers/production-status.handler";
 import { registerHandler } from "@/lib/event-log/dispatcher";
 
 let _registered = false;
@@ -99,10 +100,10 @@ export function ensureHandlersRegistered(): void {
   registerHandler(conversaoDeVendaHandler);
   registerHandler(conversaoDeQualificacaoHandler);
   registerHandler(conversaoDeEtapaMetaHandler);
+  // CRMGráfica 2.0 — Handler de status de produção
+  registerHandler(productionStatusHandler);
   _registered = true;
 }
 
-// CRMGráfica 2.0 — Handler de status de produção
-import { productionStatusHandler } from "@/lib/event-log/handlers/production-status.handler";
-registerHandler(productionStatusHandler);
+
 

@@ -1,45 +1,48 @@
 /**
  * CRMGráfica 2.0 — Handler de alteração de status de produção
- * 
+ *
  * Disparado quando um pedido muda de estágio no funil de produção.
  * Envia notificação WhatsApp automática para "Pronto para Retirada"
  * e mensagem com link de avaliação para "Serviço Concluído".
  */
 
 import { handleStatusChange } from "@/lib/license/pickup-trigger";
-import { registerHandler } from "@/lib/event-log/dispatcher";
+import type { EventHandler, EventRow, HandlerResult } from "@/lib/event-log/dispatcher";
 
 export interface ProductionStatusEventPayload {
-  orderId: string;
-  orderNumber: string;
-  clientId: string;
-  fromStatus: string;
-  toStatus: string;
-  organizationId: string;
+  orderId?: string;
+  orderNumber?: string;
+  clientId?: string;
+  fromStatus?: string;
+  toStatus?: string;
+  organizationId?: string;
 }
 
-async function productionStatusHandler(event: {
-  organization_id: string;
-  event_type: string;
-  entity_kind: string;
-  entity_id: string;
-  status: string;
-  payload: unknown;
-}): Promise<void> {
-  const p = event.payload as ProductionStatusEventPayload | null;
-  if (!p) return;
+const CONSUMER_KEY = "production_status_handler";
 
-  const { orderId, orderNumber, clientId, toStatus, organizationId } = p;
+export const productionStatusHandler: EventHandler = {
+  key: CONSUMER_KEY,
+  events: ["lead.stage_changed", "order.status_changed"],
+  naOrgParada: "pula",
+  async handle(row: EventRow): Promise<HandlerResult> {
+    const p = (row.payload ?? null) as ProductionStatusEventPayload | null;
+    if (!p) {
+      return { consumer_key: CONSUMER_KEY, status: "skipped", detail: "empty_payload" };
+    }
 
-  // Só processa os statuses que geram automação
-  if (toStatus !== "pronto_retirada" && toStatus !== "servico_concluido") return;
+    const { orderNumber, clientId, toStatus } = p;
+    const organizationId = p.organizationId || row.organization_id;
 
-  await handleStatusChange(organizationId, clientId, orderNumber, toStatus);
-}
+    // Só processa os statuses que geram automação
+    if (toStatus !== "pronto_retirada" && toStatus !== "servico_concluido") {
+      return { consumer_key: CONSUMER_KEY, status: "skipped", detail: "status_ignorado" };
+    }
 
-// Registrar handler
-registerHandler({
-  name: "production_status_handler",
-  eventTypes: ["lead.stage_changed", "order.status_changed"],
-  handler: productionStatusHandler,
-});
+    if (!clientId || !orderNumber) {
+      return { consumer_key: CONSUMER_KEY, status: "skipped", detail: "dados_incompletos" };
+    }
+
+    await handleStatusChange(organizationId, clientId, orderNumber, toStatus);
+    return { consumer_key: CONSUMER_KEY, status: "ok" };
+  },
+};

@@ -6,6 +6,7 @@
  */
 
 import { env } from "@/lib/env";
+import { logger } from "@/lib/logger";
 
 export type LicensePlan = "starter" | "professional" | "enterprise";
 export type LicensedModule =
@@ -92,11 +93,11 @@ export class DevelopmentLicenseServer implements ILicenseServer {
   }
 
   async revoke(key: string, reason: string): Promise<void> {
-    console.log(`[License] Chave ${key} revogada: ${reason}`);
+    logger.info(`Chave revogada`, { key, reason });
   }
 
   async updateModules(key: string, modules: LicensedModule[]): Promise<void> {
-    console.log(`[License] Módulos atualizados para ${key}:`, modules);
+    logger.info(`Módulos atualizados`, { key, modules });
   }
 }
 
@@ -143,7 +144,7 @@ export class ProductionLicenseServer implements ILicenseServer {
         body: JSON.stringify({ key, reason }),
       });
     } catch {
-      console.error("[License] Falha ao revogar chave:", key);
+      logger.error("Falha ao revogar chave", { key });
     }
   }
 
@@ -156,7 +157,7 @@ export class ProductionLicenseServer implements ILicenseServer {
         body: JSON.stringify({ key, modules }),
       });
     } catch {
-      console.error("[License] Falha ao atualizar módulos:", key);
+      logger.error("Falha ao atualizar módulos", { key });
     }
   }
 }

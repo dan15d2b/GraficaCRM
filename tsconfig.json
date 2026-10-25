@@ -45,6 +45,8 @@
     "**/*.test.ts",
     "**/*.test.tsx",
     "tests/**",
-    "crmgrafica-2.0/**"
+    "crmgrafica-2.0/**",
+    "src-tauri/target/**",
+    "src-tauri/app/**"
   ]
 }

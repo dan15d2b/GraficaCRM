@@ -86,7 +86,8 @@ export async function sendWeeklyReport(orgId: string): Promise<void> {
 
   if (!admins || admins.length === 0) return;
 
-  const adminEmail = admins[0].users.email;
+  const rawUsers = admins[0]?.users as { email?: string }[] | { email?: string } | undefined;
+  const adminEmail = Array.isArray(rawUsers) ? rawUsers[0]?.email : rawUsers?.email;
   if (!adminEmail) return;
 
   // Renderizar template

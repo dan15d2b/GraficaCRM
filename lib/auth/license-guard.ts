@@ -6,6 +6,7 @@
  */
 
 import { checkLicense, type LicenseKey } from '@/lib/license/client';
+import { logger } from '@/lib/logger';
 
 export interface LicenseGuardResult {
   ok: boolean;
@@ -29,7 +30,7 @@ export async function guardLicenseForUser(
 
   // Em instalações locais sem LICENSE_SERVER_URL, pula validação
   if (!process.env.LICENSE_SERVER_URL) {
-    console.log('[LicenseGuard] Modo local detectado — pulando validação online');
+    logger.info('Modo local detectado — pulando validação online');
     return { ok: true };
   }
 

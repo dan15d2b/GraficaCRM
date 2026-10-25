@@ -4,6 +4,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { env } from "@/lib/env";
+import { logger } from "@/lib/logger";
 
 export interface CompanyLocationConfig {
   name: string;
@@ -125,13 +126,13 @@ export async function handleStatusChange(
       .single();
 
     if (!client?.phone_number) {
-      console.warn(`[CRMGráfica] Sem telefone para notificação: ${clientId}`);
+      logger.warn(`Sem telefone para notificação`, { clientId });
       return;
     }
 
     const config = await getCompanyLocationConfig(orgId);
     if (!config) {
-      console.warn(`[CRMGráfica] Configuração da empresa não encontrada para ${orgId}`);
+      logger.warn(`Configuração da empresa não encontrada`, { orgId });
       return;
     }
 
@@ -142,20 +143,20 @@ export async function handleStatusChange(
       const message = generatePickupMessage(name, orderNumber, config);
       const result = await sendWhatsAppMessage(phone, message);
       if (result.success) {
-        console.log(`[CRMGráfica] Notificação de retirada enviada para ${phone}`);
+        logger.info(`Notificação de retirada enviada`, { phone });
       } else {
-        console.error(`[CRMGráfica] Falha ao enviar notificação de retirada: ${result.error}`);
+        logger.error(`Falha ao enviar notificação de retirada`, { phone, error: result.error });
       }
     } else if (newStatus === "servico_concluido") {
       const message = generateCompletionMessage(name, orderNumber, config);
       const result = await sendWhatsAppMessage(phone, message);
       if (result.success) {
-        console.log(`[CRMGráfica] Notificação de conclusão + avaliação enviada para ${phone}`);
+        logger.info(`Notificação de conclusão enviada`, { phone });
       } else {
-        console.error(`[CRMGráfica] Falha ao enviar notificação de conclusão: ${result.error}`);
+        logger.error(`Falha ao enviar notificação de conclusão`, { phone, error: result.error });
       }
     }
   } catch (error) {
-    console.error("[CRMGráfica] Erro no handler de status:", error);
+    logger.error("Erro no handler de status", { orgId, clientId, orderNumber, newStatus, error });
   }
 }

@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
     // ponte e não 302 (issue #1646).
     // CRMGráfica 2.0 — License Guard: verifica licença antes de entrar no app
     if (env.CRMGRAFICA_SKIP_ONBOARDING === "1") {
-      const licenseResult = await guardLicenseForUser(usuario.id, org.orgId);
+      const licenseResult = await guardLicenseForUser(usuario.id, organizacaoId || "");
       if (!licenseResult.ok) {
         return redirectTo(`/login?error=${encodeURIComponent(licenseResult.error || "licenca_bloqueada")}`);
       }
@@ -243,7 +243,7 @@ export async function GET(request: NextRequest) {
     // Convite aceito: a pessoa cai autenticada no app, pela ponte.
     // CRMGráfica 2.0 — License Guard
     if (env.CRMGRAFICA_SKIP_ONBOARDING === "1") {
-      const licenseResult = await guardLicenseForUser(usuario.id, org.orgId);
+      const licenseResult = await guardLicenseForUser(usuario.id, organizacaoId || "");
       if (!licenseResult.ok) {
         return redirectTo(`/login?error=${encodeURIComponent(licenseResult.error || "licenca_bloqueada")}`);
       }
@@ -300,7 +300,7 @@ export async function GET(request: NextRequest) {
 
   // CRMGráfica 2.0 — License Guard
   if (env.CRMGRAFICA_SKIP_ONBOARDING === "1") {
-    const licenseResult = await guardLicenseForUser(usuario.id, org.orgId);
+    const licenseResult = await guardLicenseForUser(usuario.id, organizacaoId || "");
     if (!licenseResult.ok) {
       return redirectTo(`/login?error=${encodeURIComponent(licenseResult.error || "licenca_bloqueada")}`);
     }

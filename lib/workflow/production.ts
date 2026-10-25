@@ -67,3 +67,28 @@ export function canTransition(from: ProductionStatus, to: ProductionStatus): { a
   const rule = WORKFLOW_RULES.find(r => r.from === from && r.to === to);
   return rule ? { allowed: rule.allowed, requiresApproval: rule.requiresApproval } : { allowed: false, requiresApproval: false };
 }
+
+
+export interface OrderItem {
+  id?: string;
+  name: string;
+  quantity: number;
+  unitPrice?: number;
+  notes?: string;
+}
+
+export interface ProductionOrder {
+  id: string;
+  orderNumber: string;
+  clientId: string;
+  organizationId: string;
+  status: ProductionStatus;
+  items?: OrderItem[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const AUTO_NOTIFY_STATUSES: ProductionStatus[] = [
+  "pronto_retirada",
+  "servico_concluido",
+];

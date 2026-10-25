@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Palette, Square, Rnd } from "lucide-react";
+import { Palette, Square } from "lucide-react";
 
 const PALETTES = [
   { id: "mist", name: "Mist", desc: "Azul profissional", color: "#3f586d" },
