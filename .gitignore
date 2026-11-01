@@ -1,6 +1,12 @@
 yarn-error.log*
 # e a linha 'started' do sessions.log não podem sujar o working tree; a guarda de
 
+# Environment & Secrets
+.env
+.env.local
+.env.*
+!.env.example
+
 # Build outputs
 node_modules/
 dist/
@@ -9,9 +15,22 @@ src-tauri/target/
 src-tauri/app/
 src-tauri/gen/
 src-tauri/resources/static/
+*.tsbuildinfo
 
 # Next.js
 .next/
 
+# Temporary files & worktrees
+a.txt
+b.txt
+c.txt
+.claude/worktrees/
+.claude/settings.local.json
+.vscode/
+crmgrafica-2.0/
+supabase/.branches/
+supabase/.temp/
+
 # Lock files (keep package.json and pnpm-lock.yaml)
 pnpm-lock.yaml.lock
+

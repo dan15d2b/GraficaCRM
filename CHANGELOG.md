@@ -8,6 +8,12 @@ Se você roda o DeskcommCRM numa VPS, **leia a seção da versão para a qual es
 
 ## [Não lançado]
 
+### Adicionado
+
+- Desktop local (Windows): SQLite em WAL na pasta de dados do sistema, sem Docker, Supabase ou Next.js no uso diário.
+- Primeira execução grava empresa, administrador, chave OpenRouter opcional e token de integração (`discovery.json`).
+- Login local (SHA-256 + salt). Tela Vite/React de clientes. Contrato `contracts/integracao-v1.openapi.yaml` para o Vetor (não implementado aqui).
+
 ## [1.79.0] — 2026-10-10
 
 ### ⚠️ Requer atenção

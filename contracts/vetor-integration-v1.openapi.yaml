@@ -1,0 +1,154 @@
+openapi: 3.0.3
+info:
+  title: CRM Gráfica - API de Integração com Vetor
+  description: |
+    Contrato de integração entre o CRM Gráfica e o sistema de orçamentos Vetor.
+    Autenticação: Token via header X-Vetor-Token (configurado em .env).
+    Escopo: Rede local apenas (LAN).
+  version: 1.0.0
+servers:
+  - url: http://{host}:3000
+    variables:
+      host:
+        default: localhost
+        description: IP do servidor Windows onde o CRM Gráfica está instalado
+tags:
+  - name: clientes
+    description: Sincronização de clientes/contatos
+  - name: orcamentos
+    description: Recebimento de orçamentos do Vetor
+  - name: status
+    description: Health check e status do serviço
+paths:
+  /api/v1/integration/vetor/health:
+    get:
+      summary: Health check da integração
+      operationId: getVetorHealth
+      tags: [status]
+      responses:
+        '200':
+          description: Integração disponível
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [ok, degraded, error] }
+                  service: { type: string, example: crm-grafica-vetor-integration }
+                  version: { type: string, example: 1.0.0 }
+                  timestamp: { type: string, format: date-time }
+  /api/v1/integration/vetor/clients:
+    post:
+      summary: Sincronizar cliente do Vetor
+      description: Cria ou atualiza contato no CRM. Lead criado na etapa Novo Lead.
+      operationId: syncVetorClient
+      tags: [clientes]
+      security: [{ BearerToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VetorClientRequest'
+            example:
+              id_vetor: CLI-001
+              nome: Padaria Pao Quente Ltda
+              nome_fantasia: Padaria do Joao
+              cpf_cnpj: 12.345.678/0001-90
+              telefone: (11) 99999-1234
+              email: contato@paoquentes.com
+      responses:
+        '201': { description: Cliente criado/atualizado }
+        '400': { description: Dados inválidos }
+        '401': { description: Token inválido }
+  /api/v1/integration/vetor/quotes:
+    post:
+      summary: Receber orçamento do Vetor
+      description: Vincula orçamento a lead existente ou cria novo. Move para Orcamento Enviado + follow-up 72h.
+      operationId: receiveVetorQuote
+      tags: [orcamentos]
+      security: [{ BearerToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VetorQuoteRequest'
+            example:
+              id_vetor: ORC-2024-001
+              cliente_id: CLI-001
+              numero_os: OS-456
+              valor_total: 1500.00
+              itens:
+                - produto: BANNER 3x1m
+                  quantidade: 10
+                  unidade: un
+                  preco_unitario: 85.00
+                  total: 850.00
+      responses:
+        '201': { description: Orcamento recebido }
+        '404': { description: Cliente nao encontrado }
+components:
+  securitySchemes:
+    BearerToken:
+      type: apiKey
+      in: header
+      name: X-Vetor-Token
+  schemas:
+    VetorClientRequest:
+      type: object
+      required: [id_vetor, nome]
+      properties:
+        id_vetor: { type: string, description: ID unico no Vetor }
+        nome: { type: string, description: Razao social ou nome }
+        nome_fantasia: { type: string }
+        cpf_cnpj: { type: string }
+        telefone: { type: string }
+        email: { type: string, format: email }
+        endereco:
+          type: object
+          properties:
+            logradouro: { type: string }
+            numero: { type: string }
+            complemento: { type: string }
+            bairro: { type: string }
+            cidade: { type: string }
+            estado: { type: string }
+            cep: { type: string }
+        observacoes: { type: string, maxLength: 500 }
+        tags: { type: array, items: { type: string } }
+    VetorQuoteRequest:
+      type: object
+      required: [id_vetor, cliente_id, itens]
+      properties:
+        id_vetor: { type: string }
+        cliente_id: { type: string, description: ID do cliente no Vetor }
+        numero_os: { type: string }
+        valor_total: { type: number }
+        moeda: { type: string, default: BRL }
+        prazo_entrega: { type: string, format: date }
+        condicoes_pagamento: { type: string }
+        itens:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [produto, quantidade, preco_unitario]
+            properties:
+              produto: { type: string }
+              quantidade: { type: number, minimum: 1 }
+              unidade: { type: string, default: un }
+              preco_unitario: { type: number, minimum: 0 }
+              total: { type: number }
+        observacoes: { type: string, maxLength: 1000 }
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: object }

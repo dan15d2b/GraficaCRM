@@ -1,0 +1,24 @@
+<service>
+  <id>CRMGraficaWorker</id>
+  <name>CRM Gráfica - Worker de Eventos</name>
+  <description>Worker que drena a fila de eventos do event_log (porta 8787 para health check)</description>
+  <executable>C:\Program Files\CRM Grafica\node.exe</executable>
+  <arguments>C:\Program Files\CRM Grafica\workers\event-log-drain.js</arguments>
+  <log mode="roll"></log>
+  <workingdirectory>C:\Program Files\CRM Grafica</workingdirectory>
+  
+  <!-- Auto-recovery: reinicia em caso de falha -->
+  <onfailure action="restart" delay="10 seconds"/>
+  <onfailure action="restart" delay="20 seconds" count="2"/>
+  <onfailure action="restart" delay="60 seconds"/>
+  
+  <!-- Dependências -->
+  <depend>CRMGraficaApp</depend>
+  <depend>PostgreSQL</depend>
+  
+  <!-- Inicialização automática no boot -->
+  <startmode>Auto</startmode>
+  
+  <!-- Timeout para shutdown gracioso -->
+  <waitorterm timeout="30 seconds"/>
+</service>

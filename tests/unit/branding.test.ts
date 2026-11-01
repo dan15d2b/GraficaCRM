@@ -131,7 +131,7 @@ describe("nome do arquivo de códigos de recuperação", () => {
   it("deriva o prefixo da marca, sem acento e sem espaço", () => {
     expect(prefixoDoArquivo("Vendas Turbo")).toBe("vendas-turbo");
     expect(prefixoDoArquivo("Ótima Gestão")).toBe("otima-gestao");
-    expect(prefixoDoArquivo(DEFAULT_APP_NAME)).toBe("deskcommcrm");
+    expect(prefixoDoArquivo(DEFAULT_APP_NAME)).toBe("crm-grafica");
   });
 
   it("não devolve hífen pendurado nem repetido", () => {
@@ -155,7 +155,7 @@ describe("nome do arquivo de códigos de recuperação", () => {
  *
  *  1. o padrão era `/Deskcomm/` — **case-sensitive**. Passavam
  *     `support@deskcomm.com.br` (tela de conta suspensa), `suporte@deskcomm.app`
- *     (tela de cobrança) e `deskcommcrm-recovery-codes.txt` (o arquivo que o
+ *     (tela de cobrança) e `crm-grafica-recovery-codes.txt` (o arquivo que o
  *     usuário baixa e guarda por anos). Endereço e nome de arquivo são
  *     minúsculos por natureza — ou seja, o gate era cego justamente na forma em
  *     que a marca de fato aparece;
@@ -213,7 +213,7 @@ const MARCA_CONGELADA: Record<string, EntradaDeMarca> = {
     categoria: "PROTOCOLO",
     motivo:
       "`agent_name_hint` identifica o aplicativo auto-hospedado durante a autorização SIWC da OpenAI; não é o nome apresentado nas telas do CRM. O fluxo de login depende deste identificador de produto.",
-    marcas: ["deskcommcrm"],
+    marcas: ["crm-grafica"],
   },
   "lib/webhooks/assinatura.ts": {
     categoria: "PROTOCOLO",
@@ -261,7 +261,7 @@ const MARCA_CONGELADA: Record<string, EntradaDeMarca> = {
     categoria: "PROTOCOLO",
     motivo:
       "User-Agent exigido pela Nuvemshop, que identifica a aplicação registrada na plataforma deles. Trocar pelo nome do revendedor descreveria uma aplicação que não existe lá",
-    marcas: ["deskcommcrm"],
+    marcas: ["crm-grafica"],
   },
   "lib/agenda/google/evento.ts": {
     categoria: "PROTOCOLO",
@@ -318,7 +318,7 @@ const MARCA_CONGELADA: Record<string, EntradaDeMarca> = {
     fase: 7,
     motivo:
       "template sem caminho de produção: sem rota em app/api/v1/cron/, sem linha no docker/scheduler/entrypoint.sh e, desde a limpeza do teto de orçamento (0159), sem chamador NENHUM — o único era workers/ai-budget-checker.cron.ts, que foi apagado por nunca ter tido agendador. Marcar isto não muda nada que um usuário veja, e a única 'prova' possível seria invocar a função à mão — o que prova a função, não o produto. Sai quando o alarme ganhar cron de verdade (ou quando o template for apagado junto)",
-    marcas: ["deskcommcrm"],
+    marcas: ["crm-grafica"],
   },
 
   // ─── DEV — fixture de teste; não embarca. ───
@@ -331,7 +331,7 @@ const MARCA_CONGELADA: Record<string, EntradaDeMarca> = {
     categoria: "DEV",
     motivo:
       "fixture que reproduz o CHANGELOG real, incluindo as URLs do repositório no GitHub. A marca aqui é o nome do repositório upstream, que o clone não renomeia",
-    marcas: ["deskcommcrm", "deskcommcrm", "deskcommcrm"],
+    marcas: ["crm-grafica", "crm-grafica", "crm-grafica"],
   },
 
   // ─── PADRAO — a marca padrão precisa existir em algum lugar. ───
@@ -339,7 +339,7 @@ const MARCA_CONGELADA: Record<string, EntradaDeMarca> = {
     categoria: "PADRAO",
     motivo:
       "é a DEFINIÇÃO de DEFAULT_APP_NAME — o valor que aparece quando o operador não configurou marca nenhuma. Se esta linha sumir, some o padrão",
-    marcas: ["deskcommcrm"],
+    marcas: ["crm-grafica"],
   },
   // `lib/video/jitsi.ts` ficou DE FORA por decisão do review do #2441: ele
   // prefixa a sala do Jitsi com `sala-`, neutro. O link é repassado no chat e
@@ -557,8 +557,8 @@ describe("catraca de marca hardcoded", () => {
   it("pega a marca em qualquer caixa e dentro de identificador", () => {
     // O furo nº 1 do gate antigo, agora com asserção: `/Deskcomm/` deixava passar
     // as três formas de baixo, que são as formas em que a marca de fato aparece.
-    expect(marcasNoTexto(`a.download = "deskcommcrm-recovery-codes.txt";`)).toEqual([
-      "deskcommcrm-recovery-codes.txt",
+    expect(marcasNoTexto(`a.download = "crm-grafica-recovery-codes.txt";`)).toEqual([
+      "crm-grafica-recovery-codes.txt",
     ]);
     expect(marcasNoTexto(`href="mailto:suporte@deskcomm.app"`)).toEqual(["suporte@deskcomm.app"]);
     expect(marcasNoTexto(`const k = "sb-DESKCOMM-auth";`)).toEqual(["sb-deskcomm-auth"]);
@@ -570,7 +570,7 @@ describe("catraca de marca hardcoded", () => {
     expect(marcasNoTexto(`  // fala do DeskcommCRM`)).toEqual([]);
     expect(marcasNoTexto(` * fala do DeskcommCRM`)).toEqual([]);
     expect(marcasNoTexto(`const u = "https://deskcomm.app/x";`)).toEqual(["deskcomm.app"]);
-    expect(marcasNoTexto(`fetch(url); // manda pro DeskcommCRM`)).toEqual(["deskcommcrm"]);
+    expect(marcasNoTexto(`fetch(url); // manda pro DeskcommCRM`)).toEqual(["crm-grafica"]);
   });
 
   it("nenhum arquivo fora da lista fixa a marca", () => {
@@ -700,7 +700,7 @@ describe("catraca de marca no que o GoTrue renderiza", () => {
       categoria: "DEV",
       motivo:
         "config do Supabase LOCAL (o `supabase start` de dev e do CI). NÃO embarca na imagem e NÃO alcança clone nenhum: um self-hoster usa um projeto na nuvem do Supabase, cuja config de auth vem do marca-emails.sh, ou um GoTrue próprio, que lê env. `project_id` ainda nomeia os contêineres locais (supabase_auth_deskcomm-crm) e os assuntos são o que a suíte local envia",
-      marcas: ["deskcomm-crm", "deskcommcrm", "deskcommcrm"],
+      marcas: ["deskcomm-crm", "crm-grafica", "crm-grafica"],
     },
   };
 
@@ -730,18 +730,18 @@ describe("catraca de marca no que o GoTrue renderiza", () => {
     expect(marcasNoTexto(semComentariosHtml("<!--\n  DeskcommCRM\n  em várias linhas\n-->"))).toEqual([]);
     // O caso que a regra de `//` erraria: marca REAL depois do fecho.
     expect(marcasNoTexto(semComentariosHtml("<!-- nota --> Sua conta no DeskcommCRM"))).toEqual([
-      "deskcommcrm",
+      "crm-grafica",
     ]);
     // E a marca fora de comentário nenhum continua contando.
-    expect(marcasNoTexto(semComentariosHtml("<p>conta no DeskcommCRM</p>"))).toEqual(["deskcommcrm"]);
+    expect(marcasNoTexto(semComentariosHtml("<p>conta no DeskcommCRM</p>"))).toEqual(["crm-grafica"]);
   });
 
   it("comentário de TOML não conta, mas `#` dentro de string não vira comentário", () => {
     expect(marcasNoTexto(semComentariosToml("# Supabase CLI config — DeskcommCRM"))).toEqual([]);
     expect(marcasNoTexto(semComentariosToml('cor = "#506d48"  # DeskcommCRM'))).toEqual([
-      "deskcommcrm",
+      "crm-grafica",
     ]);
-    expect(marcasNoTexto(semComentariosToml('subject = "Olá — DeskcommCRM"'))).toEqual(["deskcommcrm"]);
+    expect(marcasNoTexto(semComentariosToml('subject = "Olá — DeskcommCRM"'))).toEqual(["crm-grafica"]);
   });
 
   it("nenhum arquivo do GoTrue fixa a marca fora da lista", () => {

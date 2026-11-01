@@ -1,3 +1,4 @@
+-- manifest: 0630 — produção, prioridade e SLA no lead (Gráfica / Comunicação Visual)
 -- migration: 0630 — produção, prioridade e SLA no lead (Gráfica / Comunicação Visual)
 -- Adiciona campos de controle de produção ao crm_leads:
 --   producao_prioridade: baixa | normal | alta | urgente

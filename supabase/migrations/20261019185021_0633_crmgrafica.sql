@@ -1,3 +1,4 @@
+-- manifest: 0633 — CRMGráfica licença e settings da organização
 -- CRMGráfica 2.0 — Migração de Licenciamento e Configurações da Empresa
 -- Tables:
 --   organization_settings: endereço, telefone, horários da gráfica para notificação de retirada

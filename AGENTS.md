@@ -23,7 +23,7 @@ Stack canônica (major; a versão exata é o `package.json`):
 Next.js 16 (App Router, Turbopack) · React 19 · TypeScript 6 estrito · Tailwind 4 (config em CSS) ·
 shadcn/ui (`new-york`) · Supabase (Postgres + Auth + Realtime + Storage) · Zod 4 · Vitest 4 ·
 Playwright 1 · Sentry 11 · WAHA 2026.7.2 (engine NOWEB) · Upstash Redis · Vercel AI Gateway
-(`@ai-sdk/anthropic|openai|google`).
+(`@ai-sdk/anthropic|openai|google`) · ESLint 10.
 
 > As majors acima são verificadas contra o `package.json` por
 > [`tests/unit/agents-md-versoes.test.ts`](tests/unit/agents-md-versoes.test.ts) — declare **só a
@@ -52,6 +52,12 @@ Playwright 1 · Sentry 11 · WAHA 2026.7.2 (engine NOWEB) · Upstash Redis · Ve
   organização), RAG por tenant, guardrails before-send.
 - **Tempo real** — Supabase Realtime (`postgres_changes` para inbox/kanban, `broadcast` para
   sinais leves). **Storage** — bucket privado `whatsapp-media`, URL assinada.
+- **Skills embutidas** — guias de operação em `.agents/skills/deskcomm-cliente-novo`,
+  `.agents/skills/deskcomm-contribuir`, `.agents/skills/deskcomm-doutrina`,
+  `.agents/skills/deskcomm-extensao`, `.agents/skills/deskcomm-instalar`,
+  `.agents/skills/deskcomm-metricas`, `.agents/skills/deskcomm-operacao`,
+  `.agents/skills/deskcomm-prompt`. Espelhadas em `.claude/skills/` por
+  `pnpm skills:sync`.
 
 Fluxo de uma rota autenticada de tenant:
 

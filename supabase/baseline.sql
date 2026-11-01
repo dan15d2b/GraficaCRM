@@ -50589,6 +50589,18 @@ create trigger trg_lgpd_secoes_de_modulo
   when (new.is_anonymized and not old.is_anonymized)
   execute function public.fn_lgpd_redigir_secoes_de_modulo();
 
+CREATE OR REPLACE FUNCTION public.fn_set_updated_at()
+RETURNS trigger AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+drop trigger if exists trg_catalogo_produtos_updated_at on "public"."catalogo_produtos";
+create trigger trg_catalogo_produtos_updated_at
+    before update on "public"."catalogo_produtos"
+    for each row execute function public.fn_set_updated_at();
 -- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
 --
 -- ⚠️ DE PROPÓSITO, NENHUMA FUNÇÃO É CRIADA DEPOIS DESTE BLOCO. Apêndice que cria
@@ -53195,18 +53207,6 @@ comment on column "public"."catalogo_produtos"."unidade" is
 comment on column "public"."catalogo_produtos"."preco_cents" is
   'Preço unitário em centavos (ex: 1500 = R$ 15,00)';
 
-CREATE OR REPLACE FUNCTION public.fn_set_updated_at()
-RETURNS trigger AS $$
-BEGIN
-    NEW.updated_at = now();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-drop trigger if exists trg_catalogo_produtos_updated_at on "public"."catalogo_produtos";
-create trigger trg_catalogo_produtos_updated_at
-    before update on "public"."catalogo_produtos"
-    for each row execute function public.fn_set_updated_at();
 
 alter table "public"."catalogo_produtos" enable row level security;
 

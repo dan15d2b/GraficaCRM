@@ -1,0 +1,51 @@
+openapi: 3.0.3
+info:
+  title: CRM Gráfica — integração local v1
+  version: 1.0.0
+  description: |
+    Contrato entre o CRM Gráfica (este repositório) e o programa de orçamentos Vetor
+    (outro repositório). O CRM nunca depende do Vetor estar instalado.
+    Descoberta: arquivo discovery.json na pasta de dados do sistema operacional,
+    com token gerado na instalação. Bind padrão 127.0.0.1.
+servers:
+  - url: http://127.0.0.1:{porta}/api/v1
+paths:
+  /health:
+    get:
+      summary: Compatibilidade de versão
+      responses:
+        "200":
+          description: Contrato aceito
+  /clientes:
+    get:
+      summary: Listar clientes da organização
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Lista }
+    post:
+      summary: Criar ou atualizar cliente (resolução de conflito por documento)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Cliente }
+  /orcamentos/{id}/virar-os:
+    post:
+      summary: Orçamento aprovado vira ordem de serviço
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "201": { description: OS criada }
+  /indicadores:
+    get:
+      summary: Faturamento, inadimplência e conversão
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Indicadores }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer

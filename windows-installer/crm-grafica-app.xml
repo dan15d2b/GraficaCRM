@@ -1,0 +1,23 @@
+<service>
+  <id>CRMGraficaApp</id>
+  <name>CRM Gráfica - Aplicação</name>
+  <description>Serviço principal do CRM Gráfica - Next.js server na porta 3000</description>
+  <executable>C:\Program Files\CRM Grafica\node.exe</executable>
+  <arguments>C:\Program Files\CRM Grafica\server.js</arguments>
+  <log mode="roll"></log>
+  <workingdirectory>C:\Program Files\CRM Grafica</workingdirectory>
+  
+  <!-- Auto-recovery: reinicia em caso de falha -->
+  <onfailure action="restart" delay="10 seconds"/>
+  <onfailure action="restart" delay="20 seconds" count="2"/>
+  <onfailure action="restart" delay="60 seconds"/>
+  
+  <!-- Dependências -->
+  <depend>PostgreSQL</depend>
+  
+  <!-- Inicialização automática no boot -->
+  <startmode>Auto</startmode>
+  
+  <!-- Timeout para shutdown gracioso -->
+  <waitorterm timeout="30 seconds"/>
+</service>

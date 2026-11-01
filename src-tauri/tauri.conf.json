@@ -4,9 +4,10 @@
   "version": "0.1.0",
   "identifier": "br.com.crmgrafica",
   "build": {
-    "devUrl": "http://localhost:3000",
-    "beforeDevCommand": "pnpm dev",
-    "frontendDist": "./app"
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "pnpm --dir frontend dev",
+    "beforeBuildCommand": "pnpm --dir frontend build",
+    "frontendDist": "../frontend/dist"
   },
   "app": {
     "windows": [

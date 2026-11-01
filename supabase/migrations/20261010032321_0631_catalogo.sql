@@ -1,3 +1,4 @@
+-- manifest: 0631 — catálogo de produtos e serviços da gráfica
 -- migration: 0631 — catálogo de produtos e serviços da gráfica
 -- Tabela de produtos/serviços com preços tabelados, usada na geração de
 -- orçamentos. Cada organização (gráfica) cadastra os seus próprios itens.

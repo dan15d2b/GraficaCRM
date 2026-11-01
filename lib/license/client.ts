@@ -7,6 +7,7 @@
 
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { randomId } from "@/lib/random-id";
 
 export type LicensePlan = "starter" | "professional" | "enterprise";
 export type LicensedModule =
@@ -57,7 +58,7 @@ export class DevelopmentLicenseServer implements ILicenseServer {
 
   constructor() {
     this.mockLicense = {
-      id: crypto.randomUUID(),
+      id: randomId(),
       key: "DEMO-2026-CRMG",
       organizationId: "demo-org",
       organizationName: "Gráfica Demo Ltda",

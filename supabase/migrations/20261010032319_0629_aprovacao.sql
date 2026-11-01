@@ -1,3 +1,4 @@
+-- manifest: 0629 — aprovação de arte no lead (Gráfica / Comunicação Visual)
 -- migration: 0629 — aprovação de arte no lead (Gráfica / Comunicação Visual)
 -- Adiciona campos formais de aprovação de arte ao crm_leads, permitindo
 -- acompanhar quem aprovou, quando e em qual versão, com status:
