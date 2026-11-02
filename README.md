@@ -9,6 +9,8 @@
 
 # 🛠️ CRM Gráfica — o Sistema Operacional de Vendas com IA, open source, pro WhatsApp
 
+⚠️ **Nota sobre instalação**: A partir de 2026, o CRM usa arquitetura local com SQLite embutido. O método antigo via HostGator (`hostgator-setup-kit/`) ainda funciona mas é considerado legado. Para instalação atual, use o **Setup Wizard** automaticamente iniciado em `http://localhost:3000` após o primeiro start.
+
 **Agentes de IA que atendem, qualificam e vendem no WhatsApp — dentro de um CRM open source rodando no seu servidor.**
 **Sem mensalidade, sem feature travada, seus dados com você. A alternativa aberta a Kommo, Octadesk e Intercom.**
 
@@ -25,9 +27,9 @@
 
 ---
 
-> ### ☁️ Rode este CRM em produção com 1 comando
+> ### ☁️ Rode este CRM em produção com 1 comando (HostGator/legacy)
 >
-> O CRM Gráfica foi desenvolvido em **parceria com a HostGator**: o [`hostgator-setup-kit/`](hostgator-setup-kit/)
+> ⚠️ **Método legado**: O CRM Gráfica foi desenvolvido em **parceria com a HostGator**. O [`hostgator-setup-kit/`](hostgator-setup-kit/)
 > instala o CRM completo (app + WhatsApp + banco) numa VPS com um único comando, e o
 > [runbook de produção](docs/runbooks/waha-hostgator.md) já assume esse ambiente.
 >
@@ -44,6 +46,19 @@
 >
 > *(prefere ler antes de executar? clone o repo e rode `bash hostgator-setup-kit/comecar.sh` —
 > ele não instala nada sem você confirmar.)*
+>
+> ---
+> 
+> ### 📦 Novo: Instalação Local com SQLite (recomendado)
+>
+> A partir de 2026, o CRM usa **SQLite embutido** (sem Supabase):
+>
+> 1. Clone e start: `git clone ... && pnpm install && pnpm dev`
+> 2. Abra `http://localhost:3000` — o **Setup Wizard** configura automaticamente:
+>    - Chave de licença (validada na VPS admin)
+>    - Credenciais do admin local
+>    - Chaves de API de IA (Anthropic/OpenAI/Google)
+> 3. Tudo é salvo localmente, sem necessidade de configurar `.env` manualmente
 
 ---
 
@@ -576,3 +591,4 @@ Este é um projeto **self-host**: cada pessoa roda o CRM na **própria infraestr
 Siga o desenvolvimento: [Instagram](https://www.instagram.com/melgarafael) · [YouTube](https://www.youtube.com/@melgarafael)
 
 </div>
+# GraficaCRM
