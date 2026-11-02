@@ -10,8 +10,6 @@
  */
 
 import { env } from "@/lib/env";
-import path from "path";
-import fs from "fs";
 
 // Tipos
 export interface LocalDBRow {
@@ -53,6 +51,8 @@ function isNode(): boolean {
  * Resolve o caminho do arquivo SQLite a partir da DATABASE_URL
  */
 function resolveDbPath(url: string): string {
+  const { path } = require("path");
+
   // Formatos suportados:
   // - file:./data/app.db
   // - file:///absolute/path/app.db
@@ -150,10 +150,12 @@ class NodeDB extends LocalDB {
     const Database = (await import("better-sqlite3")).default;
     const dbPath = resolveDbPath(config.url);
 
-    // Garante que o diretório existe
+    // Garante que o diretório existe (imports lazy para evitar 'fs' no bundle client)
+    const { path } = require("path");
+    const { existsSync, mkdirSync } = require("fs");
     const dir = path.dirname(dbPath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
     }
 
     this.db = new Database(dbPath);

@@ -172,9 +172,12 @@ export function SidebarContent({
           // O desenho do produto, inline (ver `components/branding/MarcaDoProduto.tsx`):
           // logotipo com a barra aberta, só o símbolo com ela recolhida.
           collapsed ? (
-            <SimboloDoProduto nome={nome} className="h-8 w-8" />
+            <img src="/logo-icon.svg" alt="GraficaCRM" className="h-8 w-8" />
           ) : (
-            <LogotipoDoProduto nome={nome} className="h-8 w-auto" />
+            <div className="flex items-center gap-2">
+              <img src="/logo-icon.svg" alt="GraficaCRM" className="h-7 w-7" />
+              <span className="font-bold text-slate-900 dark:text-slate-100">Grafica<span className="text-indigo-500">CRM</span></span>
+            </div>
           )
         ) : (
           <span className={cn("font-semibold tracking-tight", collapsed && "sr-only")}>{nome}</span>
@@ -286,8 +289,8 @@ export function SidebarContent({
                           className={cn(
                             "relative flex items-center gap-3 rounded-md px-3 py-1 text-sm transition-colors",
                             isActive
-                              ? "bg-accent text-accent-foreground"
-                              : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                              ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md"
+                              : "text-muted-foreground hover:bg-indigo-50 hover:text-indigo-700",
                             collapsed && "justify-center px-2",
                           )}
                         >
@@ -314,8 +317,8 @@ export function SidebarContent({
                         className={cn(
                           "flex items-center gap-3 rounded-md px-3 py-1 text-sm transition-colors",
                           pathname === group.hub.href
-                            ? "bg-accent text-accent-foreground"
-                            : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                            ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md"
+                            : "text-muted-foreground hover:bg-indigo-50 hover:text-indigo-700",
                           collapsed && "justify-center px-2",
                         )}
                       >
@@ -340,8 +343,8 @@ export function SidebarContent({
             className={cn(
               "mb-1 flex items-center gap-3 rounded-md px-3 py-1 text-sm transition-colors",
               pathname.startsWith(rodape.href)
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md"
+                : "text-muted-foreground hover:bg-indigo-50 hover:text-indigo-700",
               collapsed && "justify-center px-2",
             )}
           >
@@ -356,7 +359,7 @@ export function SidebarContent({
             onClick={() => startTransition(() => toggleSidebar(collapsed))}
             disabled={isPending}
             className={cn(
-              "flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+              "flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-muted-foreground hover:bg-indigo-50 hover:text-indigo-700",
               collapsed && "justify-center px-2",
             )}
             aria-label={collapsed ? t("Expandir sidebar") : t("Recolher sidebar")}
@@ -408,7 +411,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
         // `duration-base` em vez do `duration-200` literal: 200ms é o mesmo
         // número, mas vindo de `--duration-base`. A Lei de movimento fecha a
         // tabela de durações, e número solto é o que a faz apodrecer.
-        "sticky top-0 z-30 flex h-dvh shrink-0 flex-col border-r bg-card transition-[width] duration-base",
+        "sticky top-0 z-30 flex h-dvh shrink-0 flex-col border-r border-white/20 bg-white/80 backdrop-blur-xl transition-[width] duration-base shadow-lg",
         collapsed ? "w-16" : "w-60",
       )}
     >

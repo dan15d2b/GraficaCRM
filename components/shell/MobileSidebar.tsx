@@ -77,9 +77,14 @@ export function GavetaDeNavegacao({ comoAba = false }: { comoAba?: boolean }) {
       </SheetTrigger>
       <SheetContent
         side="left"
-        className="flex w-72 max-w-[calc(100vw-2rem)] flex-col gap-0 p-0 sm:max-w-xs"
+        className="flex w-72 max-w-[calc(100vw-2rem)] flex-col gap-0 p-0 sm:max-w-xs bg-white/80 backdrop-blur-xl border-r border-white/20"
       >
         <SheetTitle className="sr-only">{t("Navegação principal")}</SheetTitle>
+        {/* Logo no topo da gaveta mobile */}
+        <div className="flex h-14 items-center gap-2 px-4 border-b border-white/20">
+          <img src="/logo-icon.svg" alt="GraficaCRM" className="h-7 w-7" />
+          <span className="font-bold text-slate-900">Grafica<span className="text-indigo-500">CRM</span></span>
+        </div>
         <SidebarContent
           collapsed={false}
           showCollapseControl={false}
