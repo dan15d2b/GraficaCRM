@@ -36,16 +36,12 @@ describe("randomId — UUID v4 dentro E fora de secure context", () => {
    */
   const SO_SERVIDOR: Record<string, string> = {
     "lib/random-id.ts": "é o próprio helper: só delega quando randomUUID existe",
-    "lib/agent-engine/edge/crm/send-ledger.ts":
-      "importa node:crypto; roda no worker do agente e nas rotas de envio",
-    "lib/agent-engine/flywheel/live.ts": "importa pg; só o workers/agent-worker usa",
     "lib/branding/logo.ts":
       "o módulo vai ao bundle (CampoDeLogo importa TAMANHO_MAXIMO_DO_LOGO), mas caminhoNovoDoLogo só é chamado em app/api/v1/marca/logo",
     "lib/channels/nome-da-sessao.ts":
       "nomeDaSessaoNovo só é chamado em lib/channels/connect-*, que cria a sessão pelo servidor",
     "lib/followup/nome-da-copia.ts":
       "nomeDaCopia só é chamado em app/api/v1/ai/followup-flows/[id]/duplicate",
-    "lib/schemas/_validate.ts": "validação de body das rotas de app/api",
   };
 
   it("nenhum arquivo que chega ao navegador usa crypto.randomUUID cru", () => {

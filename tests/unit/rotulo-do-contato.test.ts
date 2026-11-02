@@ -1,6 +1,6 @@
-import { execFileSync } from "node:child_process";
-import * as fs from "node:fs";
-import * as path from "node:path";
+import { execFileSync } from "child_process";
+import * as fs from "fs";
+import * as path from "path";
 
 import { describe, expect, it } from "vitest";
 
@@ -246,8 +246,8 @@ describe("a sétima cópia não nasce", () => {
   function arquivosVarridos(): string[] {
     return execFileSync("git", DIRETORIOS, { encoding: "utf8" })
       .split("\n")
-      .filter((f) => /\.(ts|tsx)$/.test(f) && !/\.test\.tsx?$/.test(f))
-      .filter((f) => f !== "lib/contacts/rotulo-do-contato.ts");
+      .filter((f: string) => /\.(ts|tsx)$/.test(f) && !/\.test\.tsx?$/.test(f))
+      .filter((f: string) => f !== "lib/contacts/rotulo-do-contato.ts");
   }
 
   /** Uma passada só serve aos dois casos: o que reincide e o que a lista autoriza em vão. */
@@ -255,7 +255,11 @@ describe("a sétima cópia não nasce", () => {
     const reincidentes: string[] = [];
     const autorizadas = new Set<(typeof LEITURAS_LEGITIMAS)[number]>();
     for (const f of arquivosVarridos()) {
-      const linhas = fs.readFileSync(path.join(process.cwd(), f), "utf8").split("\n");
+      // Pular arquivos que foram excluídos durante a limpeza (ex: lib/external-db/*)
+      const caminhoArquivo = path.join(process.cwd(), f);
+      if (!fs.existsSync(caminhoArquivo)) continue;
+
+      const linhas = fs.readFileSync(caminhoArquivo, "utf8").split("\n");
       linhas.forEach((linha, i) => {
         // Fora as organizações: `organizations.display_name` é outro conceito e
         // tem cadeia própria e legítima.

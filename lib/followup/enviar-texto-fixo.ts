@@ -1,5 +1,5 @@
 import {sendWithLedger,supabaseSendLedger} from "@/lib/agent-engine/edge/crm/send-ledger";
-import { randomUUID } from "node:crypto";
+import { randomId } from "@/lib/random-id";
 import { assertAgendaEffectSupabase } from "@/lib/agenda/efeito";
 import { AgendaDeferredError } from "@/lib/agenda/protecao-followup";
 import { parseServiceBoundary, StaleServiceBoundaryError } from "@/lib/atendimento/fronteira";
@@ -70,7 +70,7 @@ export async function enviarTextoFixoPendente(
     .limit(5);
   if (error) throw new Error(error.message);
 
-  const workerId=`inline-followup:${randomUUID()}`;
+  const workerId=`inline-followup:${randomId()}`;
   /**
    * Fecha o job. `adiamento` devolve ele a `pending` apontando `retryAt` (sem
    * gastar tentativa) — é o desfecho de uma espera LEGÍTIMA, não de falha: a

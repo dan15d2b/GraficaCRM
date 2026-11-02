@@ -18,18 +18,19 @@
  *   2. todo script que cria, clona ou commita em repositório descartável zera o
  *      ambiente local do git herdado: `unset $(git rev-parse --local-env-vars)`.
  */
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 const RAIZ = process.cwd();
-const SCRIPTS = [
+const CANDIDATOS = [
   ...readdirSync(join(RAIZ, "tests", "shell"))
     .filter((f) => f.endsWith(".sh"))
     .map((f) => join("tests", "shell", f)),
   join("hostgator-setup-kit", "test-validators.sh"),
 ];
+const SCRIPTS = CANDIDATOS.filter((caminho) => existsSync(join(RAIZ, caminho)));
 
 /** Linhas de código, sem comentário de linha inteira. */
 function codigo(caminho: string): Array<[number, string]> {

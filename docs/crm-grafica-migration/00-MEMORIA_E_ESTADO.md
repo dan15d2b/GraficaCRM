@@ -256,6 +256,19 @@
 - ✅ Passo 4: Engenharia de Empacotamento Windows
 - ✅ Passo 5: Integração com Vetor
 
-**Próximo passo recomendado:** Executar `pnpm typecheck` e `pnpm lint` para validação final, seguido de testes unitários em ambiente com Node 22 + pnpm 9.15.9.
+---
+
+## Arquitetura de Licenciamento & VPS Oracle Cloud (Opção B - 100% Local)
+
+### Diretrizes de Banco de Dados
+- **Clientes (Gráficas):** PostgreSQL 16 100% LOCAL (no servidor/VPS da própria gráfica ou SQLite nativo no Windows). NENHUM dado de cliente utiliza Supabase Cloud.
+- **Plataforma ADMIN (Dono):** PostgreSQL 16 100% LOCAL na VPS da Oracle Cloud (`licenca.seudominio.com.br`).
+  - Armazena exclusivamente: cadastro de clientes, tokens de licença (`CRM-XXX-XXXX`), status de bloqueio por inadimplência, plano e logs de validação.
+
+### Ciclo de Vida da Validação
+- **Checagem Diária:** O CRM da gráfica chama `POST /api/v1/license/validate` a cada 24 horas.
+- **Tolerância Offline:** Carência de até 72h sem conexão de rede para evitar parada do negócio da gráfica.
+- **Bloqueio Remoto:** Alterações de status no Painel ADMIN (`blocked: true`) passam a vigorar na próxima checagem do cliente.
+
 
 

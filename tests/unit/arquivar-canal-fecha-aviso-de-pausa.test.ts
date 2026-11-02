@@ -8,20 +8,24 @@
  * #1023). Esta cerca acha os arquivamentos pelo código, não por lista: um
  * caminho novo que arquive canal sem fechar o aviso reprova aqui.
  */
-import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { execFileSync } from "child_process";
+import { readFileSync, existsSync } from "fs";
+import { join } from "path";
 import { describe, expect, it } from "vitest";
 
+const RAIZ = process.cwd();
 const ARQUIVA = /archived_at:\s*(now|agora|new Date)/;
 const DA_TABELA = /from\("channel_sessions"\)/;
 const FECHA = /\b(sincronizarAvisoDePausa|fecharAvisoDePausaDoCanalArquivado)\(/;
 
 const fontes = execFileSync("git", ["ls-files", "app", "lib", "workers"], { encoding: "utf8" })
   .split("\n")
-  .filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f));
+  .filter((f: string) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f));
 
-const arquivam = fontes.filter((f) => {
-  const s = readFileSync(f, "utf8");
+const arquivam = fontes.filter((f: string) => {
+  const fullPath = join(RAIZ, f);
+  if (!existsSync(fullPath)) return false;
+  const s = readFileSync(fullPath, "utf8");
   return ARQUIVA.test(s) && DA_TABELA.test(s);
 });
 

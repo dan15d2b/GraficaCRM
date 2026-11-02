@@ -155,12 +155,14 @@ export interface FlywheelRunResult {
   followupOutcomes: Array<{ organization_id: string; stats: FlowOutcomeStat[] }>;
 }
 
+import { randomId } from "@/lib/random-id";
+
 export async function runFlywheelOnce(
   pool: pg.Pool,
   llmCfg: LlmEdgeConfig,
   opts: { limit: number; log: Logger; janelaMs?: number },
 ): Promise<FlywheelRunResult> {
-  const runId = crypto.randomUUID();
+  const runId = randomId();
   const { limit, log } = opts;
   const turns = await collectRecentTurns(pool, limit, opts.janelaMs ?? null);
   log.info('flywheel: turnos reais coletados', { run_id: runId, turns: turns.length });

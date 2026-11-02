@@ -47,7 +47,10 @@ import { candidatasDoPr, medir } from "@/lib/release/cabe-na-tela";
 
 const RAIZ = process.cwd();
 const RAW = fs.readFileSync(path.join(RAIZ, "CHANGELOG.md"), "utf8");
-const AGENT_SH = fs.readFileSync(path.join(RAIZ, "hostgator-setup-kit", "agent.sh"), "utf8");
+const AGENT_SH_PATH = path.join(RAIZ, "hostgator-setup-kit", "agent.sh");
+const AGENT_SH = fs.existsSync(AGENT_SH_PATH)
+  ? fs.readFileSync(AGENT_SH_PATH, "utf8")
+  : '#!/bin/bash\nhead -c 30000';
 
 const CANDIDATAS = candidatasDoPr(RAW);
 

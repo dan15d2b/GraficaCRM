@@ -1,8 +1,9 @@
 import { ApiError } from "@/lib/api/types";
 import { OrgNaoOperanteError } from "@/lib/organizacao/operante";
 import { createHash } from "node:crypto";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Queryable } from "../../queue/queue";
+import { randomId } from "@/lib/random-id";
+import { dbQuery, dbExecute } from "@/lib/db/local";
 
 export type SendLedgerStatus = "requested" | "accepted" | "queued" | "vetoed" | "failed";
 export type SendOutcome =
@@ -126,8 +127,8 @@ export function pgSendLedger(db: Queryable): LedgerStore {
     },
     async rotate(i, hash) {
       const { rows } = await db.query<{ id: string }>(
-        "update send_ledger set id=gen_random_uuid(),status='requested',body_hash=$4,crm_message_id=null,last_error=null,updated_at=now() where organization_id=$1 and job_id=$2 and seq=$3 returning id",
-        [i.tenantId, i.jobId, i.seq, hash],
+        "update send_ledger set id=?,status='requested',body_hash=$4,crm_message_id=null,last_error=null,updated_at=now() where organization_id=$1 and job_id=$2 and seq=$3 returning id",
+        [randomId(), i.tenantId, i.jobId, i.seq, hash],
       );
       if (!rows[0]) throw new Error("send_ledger_rotation_missing");
       return rows[0].id;
@@ -152,87 +153,6 @@ export function pgSendLedger(db: Queryable): LedgerStore {
     },
   };
 }
-export function supabaseSendLedger(db: SupabaseClient): LedgerStore {
-  return {
-    async create(i, hash) {
-      const { data, error } = await db
-        .from("send_ledger")
-        .insert({
-          organization_id: i.tenantId,
-          contact_id: i.leadId,
-          job_id: i.jobId,
-          seq: i.seq,
-          body_hash: hash,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-      return data.id;
-    },
-    async find(i) {
-      const { data, error } = await db
-        .from("send_ledger")
-        .select("id,status,crm_message_id")
-        .eq("organization_id", i.tenantId)
-        .eq("job_id", i.jobId)
-        .eq("seq", i.seq)
-        .maybeSingle();
-      if (error) throw error;
-      return data as Row | null;
-    },
-    async rotate(i, hash) {
-      const { data, error } = await db
-        .from("send_ledger")
-        .update({
-          id: crypto.randomUUID(),
-          status: "requested",
-          body_hash: hash,
-          crm_message_id: null,
-          last_error: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("organization_id", i.tenantId)
-        .eq("job_id", i.jobId)
-        .eq("seq", i.seq)
-        .select("id")
-        .single();
-      if (error) throw error;
-      return data.id;
-    },
-    async message(org, key) {
-      const porId = await db
-        .from("messages")
-        .select("id,status")
-        .eq("organization_id", org)
-        .eq("id", key)
-        .maybeSingle();
-      if (porId.error) throw porId.error;
-      if (porId.data) return porId.data;
-      const { data, error } = await db
-        .from("messages")
-        .select("id,status")
-        .eq("organization_id", org)
-        .eq("metadata->>idempotency_key", key)
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    async update(org, key, status, id, errorText) {
-      const { error } = await db
-        .from("send_ledger")
-        .update({
-          status,
-          ...(id ? { crm_message_id: id } : {}),
-          last_error: errorText,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("organization_id", org)
-        .eq("id", key);
-      if (error) throw error;
-    },
-  };
-}
 /** Resultado do turno sem importar runtime/env; ausência de envio é terminal explícito. */
 export async function resultadoDoEnvioDoFollowup(
   db: Queryable,
@@ -252,4 +172,60 @@ export async function resultadoDoEnvioDoFollowup(
     return { kind: "skipped", reason: "O envio foi recusado pelas regras do atendimento." };
   if (rows.some((row) => row.status !== "accepted")) throw new Error("followup_message_not_sent");
   return { kind: "sent" };
+}
+
+/** Versão local do LedgerStore usando dbQuery/dbExecute (sem Supabase). */
+export function localSendLedger(): LedgerStore {
+  return {
+    async create(i, hash) {
+      const result = await dbExecute(
+        "insert into send_ledger (id, organization_id, contact_id, job_id, seq, body_hash, created_at, updated_at) values (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+        [randomId(), i.tenantId, i.leadId, i.jobId, i.seq, hash],
+      );
+      if (!result.rows[0]?.id) throw new Error("send_ledger_insert_missing");
+      return result.rows[0].id as string;
+    },
+    async find(i) {
+      const result = await dbQuery(
+        "select * from send_ledger where organization_id=? and job_id=? and seq=?",
+        [i.tenantId, i.jobId, i.seq],
+      );
+      return result.rowCount > 0 ? (result.rows[0] as Row) : null;
+    },
+    async rotate(i, hash) {
+      const result = await dbExecute(
+        "update send_ledger set id=?,status='requested',body_hash=?,crm_message_id=null,last_error=null,updated_at=datetime('now') where organization_id=? and job_id=? and seq=?",
+        [randomId(), hash, i.tenantId, i.jobId, i.seq],
+      );
+      if (!result.rows[0]?.id) {
+        // Se nada foi atualizado, tenta criar uma nova entrada
+        const newResult = await dbExecute(
+          "insert into send_ledger (id, organization_id, contact_id, job_id, seq, body_hash, status, created_at, updated_at) values (?, ?, ?, ?, ?, ?, 'requested', datetime('now'), datetime('now'))",
+          [randomId(), i.tenantId, i.leadId, i.jobId, i.seq, hash],
+        );
+        if (!newResult.rows[0]?.id) throw new Error("send_ledger_rotation_missing");
+        return newResult.rows[0].id as string;
+      }
+      return result.rows[0].id as string;
+    },
+    async message(org, key) {
+      const result = await dbQuery(
+        "select id,status from messages where organization_id=? and id=?",
+        [org, key],
+      );
+      if (result.rowCount > 0) return result.rows[0] as { id: string; status: string };
+      const legado = await dbQuery(
+        "select id,status from messages where organization_id=? and metadata->>'idempotency_key'=? limit 1",
+        [org, key],
+      );
+      return legado.rowCount > 0 ? (legado.rows[0] as { id: string; status: string }) : null;
+    },
+    async update(org, key, status, id, error) {
+      const now = new Date().toISOString();
+      await dbExecute(
+        "update send_ledger set status=?,crm_message_id=coalesce(?,crm_message_id),last_error=?,updated_at=? where organization_id=? and id=?",
+        [status, id, error, now, org, key],
+      );
+    },
+  };
 }

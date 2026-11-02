@@ -38,11 +38,12 @@
  * NUNCA LANÇA: a resposta ao lead não pode morrer por causa do aviso que pede
  * atenção — a aviso-de-etapa.handler tem a mesma regra.
  */
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { traduzir } from "@/lib/i18n/dicionario";
 import { normalizarIdioma, type Idioma } from "@/lib/i18n/idiomas";
 import { logger } from "@/lib/logger";
+import { dbQuery, dbExecute } from "@/lib/db/local";
+import { randomId } from "@/lib/random-id";
 
 /** A marca do aviso (chave do dicionário) — é pelo título que a dedup o reconhece. */
 export const TITULO_AVISO_DE_DESTINO_RECUSADO =
@@ -85,42 +86,37 @@ export interface EntradaDoAvisoDeDestino {
  * o turno do lead por causa dele seria trocar um recudo invisível por uma pane.
  */
 export async function abreAvisoDeDestinoRecusado(
-  admin: SupabaseClient,
+  _dbOrClient: unknown,
   entrada: EntradaDoAvisoDeDestino,
 ): Promise<void> {
   try {
-    const { data: org } = await admin
-      .from("organizations")
-      .select("locale")
-      .eq("id", entrada.organizationId)
-      .maybeSingle();
-    const idioma = normalizarIdioma((org as { locale?: string | null } | null)?.locale);
+    const orgResult = await dbQuery(
+      "SELECT locale FROM organizations WHERE id = ? LIMIT 1",
+      [entrada.organizationId],
+    );
+    const idioma = normalizarIdioma((orgResult.rows[0] as { locale?: string | null } | undefined)?.locale ?? null);
     const titulo = tituloDoAvisoDeDestinoRecusado(idioma);
 
-    const { data: jaAberto, error: erroDaBusca } = await admin
-      .from("agent_inbox_items")
-      .select("id")
-      .eq("organization_id", entrada.organizationId)
-      .eq("kind", "other")
-      .eq("ref_kind", "lead")
-      .eq("ref_id", entrada.leadId)
-      .eq("status", "open")
-      .eq("title", titulo)
-      .limit(1)
-      .maybeSingle();
-    if (erroDaBusca) throw new Error(`busca de aviso aberto: ${erroDaBusca.message}`);
-    if (jaAberto) return;
+    const jaAberto = await dbQuery(
+      `SELECT id FROM agent_inbox_items
+       WHERE organization_id = ? AND kind = 'other' AND ref_kind = 'lead'
+         AND ref_id = ? AND status = 'open' AND title = ?
+       LIMIT 1`,
+      [entrada.organizationId, entrada.leadId, titulo],
+    );
+    if (jaAberto.rowCount > 0) return;
 
-    const { error: erroDoInsert } = await admin.from("agent_inbox_items").insert({
-      organization_id: entrada.organizationId,
-      kind: "other",
-      severity: "warn",
-      title: titulo,
-      body: corpoDoAvisoDeDestinoRecusado(entrada.motivo, idioma),
-      ref_kind: "lead",
-      ref_id: entrada.leadId,
-    });
-    if (erroDoInsert) throw new Error(`aviso não entrou na Central: ${erroDoInsert.message}`);
+    await dbExecute(
+      `INSERT INTO agent_inbox_items (id, organization_id, kind, severity, title, body, ref_kind, ref_id, status, created_at)
+       VALUES (?, ?, 'other', 'warn', ?, ?, 'lead', ?, 'open', datetime('now'))`,
+      [
+        randomId(),
+        entrada.organizationId,
+        titulo,
+        corpoDoAvisoDeDestinoRecusado(entrada.motivo, idioma),
+        entrada.leadId,
+      ],
+    );
   } catch (err) {
     logger.warn("[destino-da-intencao] não abri o aviso da recusa na Central", {
       organizationId: entrada.organizationId,

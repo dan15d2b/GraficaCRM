@@ -37,6 +37,7 @@ const BUILTINS = new Set(["fs", "path", "child_process", "os", "url", "crypto", 
 const FORA = new Set(["node_modules", "dist", "experiments"]);
 const SUITES_DE_OUTRO_RUNNER = ["tests/e2e/", "tests/invariants/", "tests/journeys/"];
 const EXTENSOES = ["", ".ts", ".tsx", "/index.ts", "/index.tsx"];
+const EXCLUIR_DIR = ["tests/obsoletos/"];
 // O projeto `cercas` roda em `node`: sem `document`/`window`. Import nenhum
 // denuncia o módulo que chama `document.execCommand` (lib/clipboard.ts), então
 // quem cita um global do browser — no teste ou em qualquer módulo da cadeia,
@@ -99,9 +100,12 @@ function classificador(raiz: string): (arquivo: string) => boolean {
 function* arquivosDeTeste(raiz: string, dir: string): Generator<string> {
   for (const entrada of readdirSync(dir, { withFileTypes: true })) {
     if (FORA.has(entrada.name) || entrada.name.startsWith(".")) continue;
+    const caminhoRelativo = relative(raiz, join(dir, entrada.name)).replaceAll(sep, "/");
+    // Excluir diretórios de testes obsoletos (hosts setup kit, arquivos removidos durante limpeza)
+    if (EXCLUIR_DIR.some((p) => caminhoRelativo.startsWith(p))) continue;
     const caminho = join(dir, entrada.name);
     if (entrada.isDirectory()) yield* arquivosDeTeste(raiz, caminho);
-    else if (/\.test\.tsx?$/.test(entrada.name)) yield relative(raiz, caminho).replaceAll(sep, "/");
+    else if (/\.test\.tsx?$/.test(entrada.name)) yield caminhoRelativo;
   }
 }
 
