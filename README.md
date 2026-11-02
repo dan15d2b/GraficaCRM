@@ -4,26 +4,75 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/brand/deskcomm-logo-dark.svg">
-  <img src="docs/brand/deskcomm-logo.svg" alt="Deskcomm CRM" width="420">
+  <img src="docs/brand/deskcomm-logo.svg" alt="CRM Gráfica" width="420">
 </picture>
 
-# 🛠️ CRM Gráfica — o Sistema Operacional de Vendas com IA, open source, pro WhatsApp
+# 🛠️ CRM Gráfica 2.0 — Sistema Operacional de Vendas com IA, open source, pro WhatsApp
 
-⚠️ **Nota sobre instalação**: A partir de 2026, o CRM usa **arquitetura local com SQLite embutido**. Não há mais dependência de Supabase/Cloud. Para instalação, use o **Setup Wizard** automaticamente iniciado em `http://localhost:3000` após o primeiro start.
+**🚀 NOVA ARQUITETURA: Tauri Desktop + Hono Backend + SQLite Local + Vite**
 
-**Agentes de IA que atendem, qualificam e vendem no WhatsApp — dentro de um CRM open source rodando no seu servidor.**
-**Sem mensalidade, sem feature travada, seus dados com você. A alternativa aberta a Kommo, Octadesk e Intercom.**
+**Agentes de IA que atendem, qualificam e vendem no WhatsApp — dentro de um CRM open source rodando localmente.**
 
-[![Next.js 16](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript)](https://www.typescriptlang.org)
-[![SQLite](https://img.shields.io/badge/SQLite-local%20database-8a8a8a?logo=sqlite)](https://sqlite.org)
-[![Self-hosted](https://img.shields.io/badge/self--hosted-1%20comando-orange)](docs/deploy/)
-[![CI](https://github.com/dan15d2b/GraficaCRM/actions/workflows/ci.yml/badge.svg)](https://github.com/dan15d2b/GraficaCRM/actions)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![](https://img.shields.io/badge/Tauri-Desktop-black?logo=tauri)](https://tauri.app)
+[![](https://img.shields.io/badge/Hono-API-black)](https://hono.dev)
+[![](https://img.shields.io/badge/SQLite-local%20database-8a8a8a?logo=sqlite)](https://sqlite.org)
+[![](https://img.shields.io/badge/React-19-black?logo=react)](https://react.dev)
+[![](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript)](https://www.typescriptlang.org)
+[![](https://img.shields.io/badge/self--hosted-1%20comando-orange)]()
+[![](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-[**⚡ Instalar**](#-instalar-na-sua-vps-o-caminho-principal) · [**🔄 Atualizar**](#-atualizar) · [**🧭 Visão**](VISION.md) · [**🏗️ Arquitetura**](ARCHITECTURE.md) · [**🤝 Contribuir**](CONTRIBUTING.md) · [**🗺️ Roadmap**](#%EF%B8%8F-roadmap)
+**⚡ Instalar** · **🧭 Visão** · **🏗️ Arquitetura** · **🤝 Contribuir**
 
 </div>
+
+---
+
+## 📦 Instalação Rápida
+
+```bash
+# 1. Clone o repositório
+git clone https://github.com/dan15d2b/GraficaCRM.git
+cd GraficaCRM
+
+# 2. Instale tudo (backend + frontend + tauri)
+./install.sh
+
+# Ou manualmente:
+pnpm install                    # Dependências raiz
+cd backend && pnpm build        # Backend Hono
+cd ../frontend-node && pnpm build  # Frontend Vite
+cd ../src-tauri && cargo tauri build  # App Desktop
+```
+
+### Primeira Execução
+
+1. Execute o app: `./target/release/crmgrafica` (ou `cargo tauri dev` para desenvolvimento)
+2. Abra `http://localhost:3000` — o **Setup Wizard** configura automaticamente:
+   - Chave de licença (validada na VPS admin)
+   - Credenciais do admin local
+   - Chaves de API de IA (Anthropic/OpenAI/Google)
+3. Tudo é salvo localmente, sem necessidade de configurar `.env` manualmente
+
+---
+
+## ☁️ Painel Admin na VPS
+
+O painel admin é um app Next.js separado em `admin-panel/`:
+
+```bash
+cd admin-panel
+pnpm install
+pnpm dev      # Desenvolvimento: http://localhost:4000
+pnpm build    # Build para produção
+pnpm start    # Servir em produção
+```
+
+### Funcionalidades do Painel Admin
+
+- **Gestão de Licenças**: Criar, validar e revogar licenças
+- **Monitoramento de Clientes**: Ver status de servidores clientes
+- **Logs de Atividade**: Auditoria de ações no sistema
+- **Configurações**: Ajustes de plataforma e módulos
 
 ---
 

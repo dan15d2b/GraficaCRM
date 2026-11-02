@@ -1,13 +1,13 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "crmgrafica",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "identifier": "br.com.crmgrafica",
   "build": {
     "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "pnpm --dir frontend dev",
-    "beforeBuildCommand": "pnpm --dir frontend build",
-    "frontendDist": "../frontend/dist"
+    "beforeDevCommand": "pnpm --dir ../frontend-node dev",
+    "beforeBuildCommand": "pnpm --dir ../frontend-node build",
+    "frontendDist": "../frontend-node/dist"
   },
   "app": {
     "windows": [

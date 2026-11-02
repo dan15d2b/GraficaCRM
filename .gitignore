@@ -1,36 +1,139 @@
-yarn-error.log*
-# e a linha 'started' do sessions.log não podem sujar o working tree; a guarda de
-
-# Environment & Secrets
-.env
-.env.local
-.env.*
-!.env.example
-
-# Build outputs
+# ====================
+# Node.js / npm
+# ====================
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-store/
+
+# ====================
+# PNPM
+# ====================
+pnpm-lock.yaml.lock
+
+# ====================
+# Build outputs
+# ====================
 dist/
 .cargo/
+*.tsbuildinfo
+
+# ====================
+# Tauri / Rust
+# ====================
 src-tauri/target/
 src-tauri/app/
 src-tauri/gen/
 src-tauri/resources/static/
-*.tsbuildinfo
+target/
+Cargo.lock
 
-# Next.js
+# ====================
+# Next.js / React
+# ====================
 .next/
+out/
 
-# Temporary files & worktrees
-a.txt
-b.txt
-c.txt
+# ====================
+# Vite
+# ====================
+.vite/
+
+# ====================
+# SQLite databases (local dev data)
+# ====================
+*.sqlite
+*.db
+backend/data/
+frontend-node/data/
+
+# ====================
+# Environment & Secrets
+# ====================
+.env
+.env.local
+.env.*.local
+.env.example
+
+# ====================
+# IDE / Editor
+# ====================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ====================
+# OS generated files
+# ====================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ====================
+# Temporary files
+# ====================
+*.tmp
+*.temp
+.git-blame-ignore-revs
 .claude/worktrees/
 .claude/settings.local.json
-.vscode/
-crmgrafica-2.0/
-supabase/.branches/
-supabase/.temp/
 
-# Lock files (keep package.json and pnpm-lock.yaml)
-pnpm-lock.yaml.lock
+# ====================
+# Logs
+# ====================
+*.log
+logs/
+*.log.*
 
+# ====================
+# Backup files
+# ====================
+*.bak
+*.backup
+*.old
+
+# ====================
+# Coverage reports
+# ====================
+coverage/
+.nyc_output/
+
+# ====================
+# Release artifacts (build binaries)
+# ====================
+*.exe
+*.msi
+*.dmg
+*.app
+*.deb
+*.rpm
+
+# ====================
+# Archive / Old files
+# ====================
+GRAFICACRM_FUNIL_COMPLETO.md
+README-novo.md
+SISTEMA_COMPLETO.md
+STATUS_MIGRACAO.md
+lib/db/fs-mock.ts
+
+# ====================
+# Deprecated Next.js app (old architecture)
+# ====================
+app/
+components/
+lib/
+public/
+scripts/
+
+# ====================
+# Old documentation that mentions Supabase (deprecated)
+# ====================
+docs/
