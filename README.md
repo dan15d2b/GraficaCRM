@@ -572,3 +572,4 @@ Este é um projeto **self-host**: cada pessoa roda o CRM na **própria infraestr
 Siga o desenvolvimento: [Instagram](https://www.instagram.com/melgarafael) · [YouTube](https://www.youtube.com/@melgarafael)
 
 </div>
+# GraficaCRM
