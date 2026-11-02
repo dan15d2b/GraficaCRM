@@ -88,7 +88,7 @@ jobs:
 
       - name: Upload artefato .deb
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: crmgrafica-linux-amd64
           path: src-tauri/target/release/crmgrafica_0.1.0_amd64.deb
@@ -153,7 +153,7 @@ jobs:
 
       - name: Upload artefato .exe
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: crmgrafica-windows-x64
           path: src-tauri/target/release/bundle/nsis/*.exe
