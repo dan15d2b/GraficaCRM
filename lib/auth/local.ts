@@ -274,7 +274,7 @@ export async function verifyPassword(password: string, hash: string, salt: strin
   if (a.length !== b.length) return false;
   let result = 0;
   for (let i = 0; i < a.length; i++) {
-    result |= a[i] ^ b[i];
+    result |= (a[i] as number) ^ (b[i] as number);
   }
   return result === 0;
 }

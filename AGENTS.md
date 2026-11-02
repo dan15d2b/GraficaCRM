@@ -1,75 +1,34 @@
-# Repository Guidelines
+# Repository Guidelines — CRM Gráfica 2.0
 
-> Contrato portável para **qualquer** agente de código (Codex, Cursor, OpenCode, Antigravity, Copilot, Cline).
+> Contrato portável para **qualquer** agente de código (Claude Code, Cursor, Cline, Roo Code, Codex).
 > Este arquivo é o núcleo. A **doutrina completa e não-negociável vive em [`CLAUDE.md`](CLAUDE.md)** —
-> leia-o antes de tocar em código. O mapa de toda a documentação está em [`docs/index.md`](docs/index.md).
-> Precedência quando dois documentos discordam: `CLAUDE.md` > `docs/specs/` > `docs/prd/` >
-> `HANDOFF-*.md` > `README.md`.
+> leia-o antes de tocar em código. Qualquer doc antigo em `docs/` ou `.claude/skills/` que mencione Supabase está REVOGADO.
 
-## Project Overview
+## Regras Invioláveis de Engenharia
 
-Sistema operacional de vendas open source com agentes de IA nativos, multi-nicho (e-commerce,
-clínicas, imobiliárias, infoprodutos, serviços), WhatsApp como canal primário via WAHA, CRM
-inteiro exposto por MCP. Multi-tenant com RLS desde o dia 1; LGPD nativa. Monetização =
-**self-host em VPS**, não assinatura. Posicionamento: [`VISION.md`](VISION.md); estado real de
-implementação: [`docs/current-state.md`](docs/current-state.md).
+1. **Explicar antes de agir:** Nunca crie, edite ou apague arquivos sem antes explicar tecnicamente a causa raiz ao usuário e listar os arquivos afetados.
+2. **Zero Gambiarra (Solução Definitiva):** Proibido criar arquivos duplicados (`route-new.ts`, `db2.ts`), comentar código quebrado ou usar `any`/`@ts-ignore`. Corrija sempre na fonte canônica.
+3. **Zero Loop:** Se um build ou teste falhar, pare imediatamente, leia o stack trace completo, identifique o conflito de import/tipo e explique antes de tentar outra abordagem.
+4. **Preservação Visual e Funcional:** Proibido alterar telas, layout, componentes (`components/`, `app/globals.css`) ou regras de negócio do CRM.
 
-**Consequência que muda como você trabalha:** o produto é distribuído como código. Quem instala
-numa VPS **é** o usuário. Uma mudança que funciona na máquina do dev e quebra no clone fresco é
-**bug de produto**, não detalhe de ambiente. Nada que exija edição manual de arquivo na VPS entra.
+## Project Overview & Arquitetura Alvo
 
-Stack canônica (major; a versão exata é o `package.json`):
+Sistema operacional de vendas para gráficas e comunicação visual com agentes de IA nativos e WhatsApp via WAHA. A arquitetura é dividida em dois ambientes 100% independentes de Supabase/nuvem de terceiros:
 
-Next.js 16 (App Router, Turbopack) · React 19 · TypeScript 6 estrito · Tailwind 4 (config em CSS) ·
-shadcn/ui (`new-york`) · Supabase (Postgres + Auth + Realtime + Storage) · Zod 4 · Vitest 4 ·
-Playwright 1 · Sentry 11 · WAHA 2026.7.2 (engine NOWEB) · Upstash Redis · Vercel AI Gateway
-(`@ai-sdk/anthropic|openai|google`) · ESLint 10.
-
-> As majors acima são verificadas contra o `package.json` por
-> [`tests/unit/agents-md-versoes.test.ts`](tests/unit/agents-md-versoes.test.ts) — declare **só a
-> major**; afirmar minor em prosa cria débito que nenhum gate cobre e trava bump do Dependabot.
-> Um teste irmão,
-> [`tests/unit/documentacao-aponta-para-o-que-existe.test.ts`](tests/unit/documentacao-aponta-para-o-que-existe.test.ts),
-> reprova todo path citado aqui que não exista no disco.
+1. **CRM Gráfica Local (Servidor do Cliente — Windows & Linux):**
+   - Roda localmente com extrema fluidez usando banco de dados local leve e eficiente (Motor Rust / SQLite WAL / LibSQL) e storage em disco local.
+   - **Setup Inicial na Instalação (Sem editar `.env`):** No primeiro acesso, abre tela de instalação pedindo a **Chave de Licença** (validada na VPS), **Usuário/Senha Admin Local** e **API Key dos Agentes de IA**, salvando tudo no banco local.
+2. **Painel Admin & Servidor de Licenças (VPS AWS):**
+   - Painel leve na VPS AWS com banco de dados local próprio (sem Supabase), responsável por criar licenças e autenticar os servidores locais dos clientes.
+   - **Setup Inicial na VPS (Sem editar `.env`):** Na instalação/primeiro acesso na VPS, exige em tela a criação de **Usuário e Senha de Admin**, persistindo no banco local da VPS.
 
 ## Architecture & Data Flow
 
-- **App** — Next.js 16 App Router: UI + Route Handlers no mesmo repo. Server Components por
-  default; `"use client"` só com estado/evento/API de browser. Middleware de borda em `proxy.ts`
-  (Next 16 renomeou `middleware.ts` → `proxy.ts`; ele injeta `X-Request-Id` e `x-pathname` e
-  autentica a sessão antes da rota).
-- **DB** — Supabase Postgres. RLS em toda tabela tenant-aware via helper
-  (`fn_user_org_ids()`/`fn_user_role_in_org()`), a mesma função SECURITY DEFINER que o RBAC de
-  aplicação usa. Schema versionado em `supabase/migrations/`; o que o self-host aplica é
-  `supabase/baseline.sql`.
-- **Auth** — Supabase Auth + `@supabase/ssr`, cookie `SameSite=Strict`. Sempre `getUser()` no
-  server; **nunca** `getSession()`. MFA TOTP é opcional e ligado por quem administra
-  (duas políticas que somam: plataforma e organização), regra pura em `lib/auth/politica-mfa.ts`.
-- **Filas** — event sourcing leve: `event_log` + workers drenados por cron. Trigger Postgres
-  **nunca** faz HTTP. Idempotência de worker: `unique (organization_id, external_id)` + captura de
-  `code === '23505'`. Contrato completo em [`docs/specs/07-spec-events-workers.md`](docs/specs/07-spec-events-workers.md).
-- **IA** — Vercel AI Gateway (Anthropic primário; embeddings pela OpenAI ou pelo Google, escolha da
-  organização), RAG por tenant, guardrails before-send.
-- **Tempo real** — Supabase Realtime (`postgres_changes` para inbox/kanban, `broadcast` para
-  sinais leves). **Storage** — bucket privado `whatsapp-media`, URL assinada.
-- **Skills embutidas** — guias de operação em `.agents/skills/deskcomm-cliente-novo`,
-  `.agents/skills/deskcomm-contribuir`, `.agents/skills/deskcomm-doutrina`,
-  `.agents/skills/deskcomm-extensao`, `.agents/skills/deskcomm-instalar`,
-  `.agents/skills/deskcomm-metricas`, `.agents/skills/deskcomm-operacao`,
-  `.agents/skills/deskcomm-prompt`. Espelhadas em `.claude/skills/` por
-  `pnpm skills:sync`.
-
-Fluxo de uma rota autenticada de tenant:
-
-```mermaid
-flowchart LR
-  A[request] --> B[proxy.ts: X-Request-Id, sessao]
-  B --> C[1. Zod valida input]
-  C --> D[2. guard: requireRole / requirePlatformAdmin / secret]
-  D --> E[3. organization_id de fonte confiavel]
-  E --> F[4. query: RLS ou filtro manual de org]
-  F --> G[5. audit se mutacao]
-  G --> H[6. ok / fail]
+- **App** — Next.js 16 App Router (Turbopack) + React 19 + TypeScript 6 estrito + Tailwind 4 (CSS-first em `app/globals.css`) + shadcn/ui (`new-york`). Middleware de borda em `proxy.ts` (Next 16 renomeou `middleware.ts` → `proxy.ts`; injeta `X-Request-Id`, verifica se o Setup Inicial já foi concluído e valida a sessão local + licença ativa).
+- **DB & Storage Local** — Persistência local de alta performance sem Supabase. Mantém todas as tabelas core (`organizations`, `users`, `crm_pipelines`, `crm_stages`, `crm_leads`, `crm_lead_activities`, `crm_lead_links`, `contacts`, `conversations`, `messages`, `api_audit_log`, `event_log`).
+- **Auth** — Autenticação local via cookie `SameSite=Strict`, `HttpOnly` + tokens `Authorization: Bearer dsk_...` via `lib/api/auth-dual.ts`.
+- **Filas** — Event sourcing leve via tabela local `event_log` + workers.
+- **IA** — Agentes de IA configurados via chave de API inserida na instalação (armazenada localmente de forma segura).
 
 <!-- BEGIN:nextjs-agent-rules -->
 

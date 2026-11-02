@@ -1,99 +1,25 @@
-# Architecture — DeskcommCRM
+# Architecture — CRM Gráfica 2.0 (Local Engine + VPS Licensing)
 
-> Visão de 1 página. Profundidade vive em `docs/specs/` e `docs/stories/epics/MASTER.md`.
-> Mapa de toda a documentação: [`docs/index.md`](docs/index.md).
-> Estado real de implementação (o que está pronto vs. incompleto): [`docs/current-state.md`](docs/current-state.md).
+> Visão de 1 página da arquitetura limpa. A doutrina soberana vive em [`CLAUDE.md`](CLAUDE.md).
 
-## Camadas
+## Camadas do Sistema
 
-- **App (Next.js 16 App Router)**: UI + Route Handlers no mesmo repo. Server Components por default, Client onde precisa de estado. Middleware de borda em `proxy.ts` (Next 16 renomeou `middleware.ts` → `proxy.ts`).
-- **DB (Supabase Postgres)**: RLS em toda tabela tenant-aware via `fn_user_org_ids()`. Migrations versionadas em `supabase/migrations/`.
-- **Auth (Supabase Auth + `@supabase/ssr`)**: cookie SameSite=Strict. Sempre `getUser()` no server, nunca `getSession()`. **MFA TOTP é opcional e ligado por quem administra** — duas políticas independentes que somam (`platform_admins.mfa_required` e `organizations.settings.security.mfa_required`), ambas com padrão **não exigir**; regra pura em `lib/auth/politica-mfa.ts`. Esta linha dizia "forçado pra admin/super-admin", que era a regra antiga: como o `install.sh` cria o dono como platform admin, toda instalação self-host recebia um bloqueador de tela cheia logo após o onboarding. Cadastrar e provar são coisas diferentes — quem TEM fator prova na sessão sempre, independente da política.
-- **Realtime (Supabase Realtime)**: `postgres_changes` para inbox/kanban; `broadcast` para sinais leves.
-- **Storage (Supabase Storage)**: bucket `whatsapp-media` privado, URLs assinadas.
-- **WhatsApp (WAHA Plus / engine NOWEB)**: HMAC-SHA512 webhooks; throttle anti-banimento; STOP detection.
-- **Filas (event sourcing leve)**: `event_log` table + workers via cron. Trigger Postgres NUNCA faz HTTP.
-- **Rate limit (Upstash Redis)**: contador de **janela fixa** (`INCR` + `EXPIRE`) em `lib/ai/dispatcher/rate-limit.ts`, com fallback in-memory quando Redis falta. ⚠️ Aplicado hoje em apenas 2 pontos (webhook de captação e dispatcher de IA) — o surface público de auth está sem. Ver [`docs/threat-model.md`](docs/threat-model.md) §T1.
-- **AI (Vercel AI Gateway)**: Anthropic primário, OpenAI backup pra embeddings.
-- **Observability (Sentry)**: `beforeSend` scrubs PII (CPF/email/phone) e headers sensíveis.
+- **App (Next.js 16 App Router)**: UI + Route Handlers no mesmo repositório. Server Components por default, Client onde precisa de estado. Middleware de borda em `proxy.ts` (Next 16 renomeou `middleware.ts` → `proxy.ts`).
+- **DB Local (Cliente Windows/Linux & VPS Admin)**: Banco de dados 100% local, leve e embarcado (SQLite WAL / LibSQL / Motor em Rust), substituindo integralmente o Supabase. Mantém isolamento por `organization_id` e integridade relacional sem depender de nuvem externa.
+- **Auth & Licenciamento**:
+  - **No Servidor Local do Cliente:** Cookie HttpOnly (`SameSite=Strict`) validado localmente + verificação de licença ativa emitida pela VPS AWS.
+  - **No Painel Admin (VPS AWS):** Autenticação local na VPS com credenciais de Admin criadas durante o Setup Inicial (sem edição manual de `.env`).
+  - **MFA TOTP:** Opcional e gerenciado em Configurações › Segurança (`lib/auth/politica-mfa.ts`).
+- **Storage Local**: Substitui o Supabase Storage. O bucket `whatsapp-media` opera em diretório local protegido no servidor do cliente, servido via rota autenticada.
+- **WhatsApp (WAHA Plus / engine NOWEB)**: Webhooks HMAC-SHA512, throttle anti-banimento e STOP detection (`lib/opt-out/deteccao.ts`).
+- **Filas (Event Sourcing Leve)**: Tabela local `event_log` + workers via cron (`workers/`).
+- **Rate Limit**: Contador local em memória/SQLite (sem obrigar Upstash Redis externo).
+- **AI (Agentes Nativos)**: Chaves de API (Anthropic, OpenAI, Google, OpenRouter) configuradas diretamente no Wizard de instalação inicial e salvas no banco local.
 
-## Multi-tenancy
+## Fluxo de Inicialização e Requisição (`proxy.ts`)
 
-`organization_id uuid not null` em toda tabela tenant-aware. RLS via helper. Service role bypassa RLS — handlers admin **DEVEM** filtrar `organization_id` manualmente, resolvido de fonte confiável (cookie/JWT/webhook secret/path token), nunca do body.
-
-Detalhes: [`docs/specs/01-spec-platform-base.md`](docs/specs/01-spec-platform-base.md).
-
-## API REST `/api/v1/`
-
-- JSON snake_case. UUID v4. ISO-8601 UTC. Dinheiro `_cents` + `currency`.
-- Wrappers `ok()` / `fail()` em `lib/api/wrappers.ts`.
-- Auth dual: cookie session (frontend) ou `Authorization: Bearer tok_...` (server-to-server).
-- `X-Request-Id` em toda response, injetado em `proxy.ts` e correlacionado com o audit log.
-- `Idempotency-Key` é o contrato para POSTs de criação; duas rotas gravam recibo próprio (`lgpd/requests/[id]/approve` e `admin/tenants`), e o helper `lib/api/idempotency.ts` (reserva a chave antes do efeito, com janela de 60s; recibo de 24h em `idempotency_keys`) serve as demais que já o adotaram, inclusive a criação de agendamentos, onde REST e MCP chegam ao mesmo handler e o runtime do agente deriva a chave de `sourceJobId` + hash do input validado. Se o processo morrer entre o efeito e o recibo, uma nova execução após a reserva vencer ainda pode repetir o efeito. Ainda **não** cobre as demais rotas de criação. Meça em vez de citar: `grep -rln 'comIdempotencia' app --include='*.ts' | grep -v '\.test\.'`.
-- Detalhes: [`docs/specs/01-spec-platform-base.md`](docs/specs/01-spec-platform-base.md) §API.
-
-## Fluxo de uma requisição
-
-**Rota autenticada de tenant** (`/api/v1/*`, 166 handlers):
-
-```
-request → proxy.ts (X-Request-Id, x-pathname; isPublicPath? → bypass;
-                    senão valida sessão Supabase via cookie sb-deskcomm-auth)
-        → route handler:
-             1. Zod valida o input externo
-             2. guard: requireRole() | requirePlatformAdmin() | secret/HMAC
-             3. resolveActiveOrg() → organization_id de fonte confiável (nunca do body)
-             4. query (RLS pelo client de sessão, ou filtro manual de org com service role)
-             5. audit() fire-and-forget se houve mutação
-             6. ok(data, meta) | fail(code, message, status)
-```
-
-**Superfícies não-cookie:** `/api/v1/cron/*` (Bearer `INTERNAL_CRON_SECRET`, fail-closed),
-`/api/internal/*` (`x-internal-secret`), `/api/mcp` (Bearer `tok_...` contra `api_tokens`),
-`/api/v1/webhooks/*` (HMAC + path token). Inventário completo em
-[`docs/threat-model.md`](docs/threat-model.md) §1.
-
-**Turno do agente de IA:** inbound WhatsApp → HMAC + idempotência → `event_log` →
-worker → `runAgentTurn` (RAG + tools MCP) → guardrails before-send → adapter WAHA →
-handoff humano se gatilho. Diagrama: [`docs/architecture/agent-turn.html`](docs/architecture/agent-turn.html).
-
-## Event log + workers
-
-Triggers Postgres emitem linhas em `event_log`. Workers (cron / Realtime listener) consomem e disparam side effects. Idempotência via `unique (organization_id, external_id)` + captura `code === '23505'`.
-
-Workers vivem em `workers/` (`ai-response`, `ai-sentiment`, `rag-indexer`, `media-persist`,
-`media-derive`, `lgpd-export`, `lgpd-redact`, `storage-cleanup`, `agent-worker`), drenados
-pelos 10 endpoints em `app/api/v1/cron/`. Contrato: [`docs/specs/07-spec-events-workers.md`](docs/specs/07-spec-events-workers.md).
-
-## Integrações externas
-
-| Serviço | Uso | Onde | Falta ⇒ |
-|---|---|---|---|
-| **Supabase** | Postgres + Auth + Realtime + Storage | `lib/supabase/{browser,server,admin}.ts` | app não sobe (obrigatório sempre) |
-| **WAHA Plus** (NOWEB) | WhatsApp: envio, recebimento, sessões multi-número | `lib/waha/` | canal indisponível; obrigatório em produção |
-| **Upstash Redis** | rate limit + debounce de RAG | `lib/ai/dispatcher/rate-limit.ts`, `lib/ai/rag/debounce.ts` | degrada para memória com `warn` |
-| **Vercel AI Gateway** | LLM + embeddings (`@ai-sdk/anthropic\|openai\|google`) | `lib/ai/` | agente não responde |
-| **Nuvemshop** | e-commerce: pedidos, produtos, webhooks LGPD | `lib/nuvemshop/` | opcional (`NUVEMSHOP_ENABLED`) |
-| **Sentry** | erros + performance, `beforeSend` higieniza PII | `sentry.*.config.ts`, `instrumentation*.ts` | opcional |
-| **Resend** | e-mail transacional (convite de time) | `lib/email/` | opcional — o convite cai em copy-to-clipboard |
-| **MCP** | CRM exposto como tools para agentes | `app/api/mcp/`, `lib/mcp/` | — |
-
-## Hardening
-
-- Error boundaries em `app/error.tsx`, `app/app/error.tsx`, `app/(public)/error.tsx`, `app/global-error.tsx` (Sentry capture + eventId visível).
-- Páginas customizadas 404/403/500/503 com copy PT-BR canônica.
-- Loading skeletons em rotas P0.
-- E2E Playwright + axe-core.
-- Detalhes: [`docs/stories/epics/EPIC-12-hardening.md`](docs/stories/epics/EPIC-12-hardening.md).
-
-## Onde olhar a fundo
-
-- [`docs/prd/`](docs/prd/) — PRDs (visão, escopo MVP, KPIs, plataforma base, customer 360, WhatsApp, pipeline, IA-RAG, Nuvemshop).
-- [`docs/specs/`](docs/specs/) — specs técnicas com schema SQL e payloads.
-- [`docs/business-rules/`](docs/business-rules/) — regras de negócio fora do código.
-- [`docs/stories/epics/MASTER.md`](docs/stories/epics/MASTER.md) — plano de execução por epic/wave.
-- [`CLAUDE.md`](CLAUDE.md) — convenções não-negociáveis (multi-tenancy, idempotência, RBAC, LGPD, WAHA, anti-patterns).
-- [`AGENTS.md`](AGENTS.md) — contrato portável para agentes de código (qualquer ferramenta).
-- [`docs/index.md`](docs/index.md) — índice de toda a documentação.
-- [`docs/harness-audit.md`](docs/harness-audit.md) — maturidade do harness e lacunas de verificação.
-- [`docs/threat-model.md`](docs/threat-model.md) — superfície de ataque do self-host.
+1. **Verificação de Setup Inicial (Boot Limpo)**:
+   - Se o sistema ainda não foi configurado (primeiro acesso na VPS ou no Cliente Local), `proxy.ts` redireciona automaticamente para `/setup` (Wizard de Instalação), sem derrubar o app por falta de variáveis no `.env`.
+   - **Na VPS AWS:** O Setup pede criação de Usuário e Senha do Admin Master.
+   - **No Servidor Local (Windows/Linux):** O Setup pede a Chave de Licença (autenticando na VPS), Usuário/Senha do Admin Local e a API Key dos Agentes de IA.
+2. **Rota Autenticada (`/api/v1/*`)**:

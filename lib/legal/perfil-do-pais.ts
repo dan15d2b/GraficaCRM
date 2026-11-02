@@ -18,57 +18,11 @@
  * leituras inline divergem no dia em que uma ganhar fallback e a outra não.
  * A divergência aqui seria pior do que no catálogo: um documento afirmaria a
  * lei de um país e o prazo seria contado pelo calendário de outro.
- *
- * ─── A régua para um país ENTRAR (lida da issue #1033) ────────────────────
- *
- * "País entra na lista com a citação revisada, ou não entra." O PDF de acesso
- * responde a um direito legal do titular, e citar a lei errada — ou o artigo
- * errado — é pior do que não citar artigo nenhum. Por isso:
- *
- *   • `lei.revisada === false` (ou `lei === null`) faz o documento NÃO citar
- *     lei nenhuma. Não há fallback para a lei brasileira: afirmar a LGPD para
- *     um titular em Angola é exatamente a citação errada;
- *   • `paisesOferecidos()` — a lista que o seletor de Configurações mostra —
- *     só inclui país com citação revisada. O registro pode conhecer mais
- *     países do que a lista oferece; é o que permite preparar o trabalho sem
- *     publicar o que ninguém revisou.
- *
- * ─── Portugal: revisão feita por IA, por delegação do dono (doc 88) ───────
- *
- * Em 2026-10-05 a citação `RGPD art. 15.º (Regulamento (UE) 2016/679)` foi
- * conferida por revisão AUTOMATIZADA, feita por IA por delegação do dono do
- * produto (doc 88 das decisões; issues #1033 e #1946). NÃO é parecer jurídico
- * e não houve advogado em Portugal. Fontes conferidas: o RGPD em português no
- * JO L 119 de 4.5.2016 (repositório de publicações da UE, com as retificações
- * do JO L 127/2018 e do JO L 74/2021, que não tocam os arts. 12.º, 15.º, 17.º
- * e 20.º) e a reprodução da PGR Lisboa; a Lei n.º 58/2019 (nada nela muda o
- * art. 15.º); as Guidelines 01/2022 do EDPB. O prazo do produto (7 e 15 dias
- * úteis, calendário português) foi simulado de 2026 a 2030 e nunca passa do
- * mês do art. 12.º, n.º 3.
- *
- * Por isso o perfil leva `revisadaPorIa` — a tela declara a natureza da
- * revisão a quem responde pelo documento — e `rotuloNoDocumento: "Direito
- * exercido"`: no RGPD, "base legal" é o art. 6.º (licitude), e o art. 15.º é
- * o direito que o titular exerceu.
- *
- * Ressalva da Nuvemshop, reconferida em 2026-10-05: a Nuvemshop não abre loja
- * em Portugal, e os 3 webhooks dela são o único caminho que cria pedido de
- * titular (vigiado por `tests/unit/so-a-nuvemshop-cria-pedido-de-titular`).
- * Uma organização portuguesa com loja Nuvemshop BRASILEIRA alcança o fluxo; aí
- * o titular é brasileiro e as duas leis podem valer — citar o RGPD não é
- * falso, mas é incompleto.
- *
- * ─── A separação documento × forma (regra adotada do #928) ────────────────
- *
- * Não se inventa dígito verificador. País com checksum público documentado
- * (Brasil) mantém o mod-11 de hoje, sem regressão; país sem checksum valida
- * FORMA e a `regra` do perfil diz isso com todas as letras, para que a
- * mensagem de erro não prometa uma garantia que o validador não dá.
  */
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { HOLIDAYS_BR_ISO } from "@/lib/lgpd/holidays-br";
 import { HOLIDAYS_PT_ISO } from "@/lib/lgpd/holidays-pt";
+import { dbQuery } from "@/lib/db/local";
 
 /** ISO-3166 alpha-2, em maiúsculas. `null`/vazio na coluna significa Brasil. */
 export type CodigoDePais = string;
@@ -128,20 +82,6 @@ export interface DocumentoDoTitular {
   normaliza(valor: string): string;
 }
 
-/**
- * Os rótulos da tela da ORGANIZAÇÃO — o nome legal da empresa e o número que a
- * identifica (`legal_name` e `cnpj` no schema de Configurações).
- *
- * Mesma razão de `DocumentoDoTitular.rotulo`: o vocabulário de TELA é
- * propriedade do país, e não do componente. Enquanto
- * `app/app/settings/tenant/_form.tsx` escrevia "Razão social" e "CNPJ" em
- * duro, uma organização portuguesa via o Brasil na própria tela de
- * Configurações (issue #1946, item 4) — o mesmo defeito que o #1945 corrigiu
- * nos diálogos de negócio e de contato.
- *
- * A coluna continua `cnpj` e o schema não muda: muda só o que se lê na tela,
- * a mesma régua de `apelidosDoCabecalho` (o vocabulário de tela muda, o dado não).
- */
 export interface EmpresaDoPais {
   /** O rótulo da tela do nome legal: "Razão social", "Denominação social". */
   rotuloNomeLegal: string;
@@ -174,16 +114,6 @@ export interface LeiCitada {
   rotuloNoDocumento?: string;
 }
 
-/**
- * A autoridade de supervisão do país — a alínea f) do art. 15.º, n.º 1.
- *
- * Mora no PERFIL, e não no módulo do art. 15.º, porque é propriedade do país:
- * trocar de país troca a autoridade junto com a lei e com o calendário (mesma
- * razão de `lei`, `calendario` e `padroesDePii`). Um país sem autoridade
- * revisada não declara o campo, e o relatório não emite a alínea f) — a mesma
- * régua de `lei.revisada`: a lei errada, ou a autoridade errada, é pior do que
- * não citar.
- */
 export interface AutoridadeDeSupervisao {
   /** Como a autoridade é conhecida, já com a sigla: "Comissão Nacional de Proteção de Dados (CNPD)". */
   nome: string;
@@ -204,44 +134,16 @@ export interface PerfilDoPais {
   /** Nome do país como o operador o lê. */
   nome: string;
   documento: DocumentoDoTitular;
-  /**
-   * Os rótulos da tela da ORGANIZAÇÃO — nome legal e número da empresa.
-   *
-   * Vêm do país junto com `documento`, porque a mesma troca de país na tela de
-   * Configurações troca os dois: o rótulo não é do componente.
-   */
   empresa: EmpresaDoPais;
-  /**
-   * Um telefone DESTE país em E.164, para o exemplo dos formulários.
-   *
-   * Mora aqui porque o campo é o mesmo em toda tela e o exemplo não é: o
-   * `+5511999998888` escrito em duro em `NewContactDialog` ensinava DDI
-   * brasileiro a quem cadastra cliente em Lisboa. País novo declara o seu.
-   */
   telefoneExemplo: string;
-  /** `null` quando o país ainda não tem lei revisada para citar. */
   lei: LeiCitada | null;
-  /**
-   * A autoridade a quem o titular reclama (art. 15.º, n.º 1, al. f)). Ausente
-   * em países cuja citação não foi revisada — e o Brasil, cujo documento segue
-   * a LGPD (art. 18, II) e não a lista do RGPD, não declara este campo: a
-   * regra byte a byte do doc 88 (`tests/fixtures/lgpd-brasil-antes-do-doc88/`)
-   * é o que trava o PDF brasileiro.
-   */
   autoridadeDeSupervisao?: AutoridadeDeSupervisao;
   calendario: CalendarioDeDiasUteis;
-  /** Padrões PRÓPRIOS do país; e-mail/telefone são universais e moram fora. */
   padroesDePii: readonly PadraoDePiiDoPais[];
 }
 
-/** Brasil é o país de quem já instalou: `null` na coluna vale este perfil. */
 export const PAIS_PADRAO: CodigoDePais = "BR";
 
-/**
- * O mod-11 da Receita Federal — a regra brasileira, e a única do repositório
- * que confere dígito verificador. Mora aqui porque é o PERFIL que valida; quem
- * importava de `lib/schemas/contacts` continua importando (re-export).
- */
 export function isValidCpf(raw: string): boolean {
   const s = raw.replace(/\D/g, "");
   if (!/^\d{11}$/.test(s) || /^(\d)\1{10}$/.test(s)) return false;
@@ -257,14 +159,6 @@ export function isValidCpf(raw: string): boolean {
   return d2 === parseInt(s[10]!, 10);
 }
 
-/**
- * O mod-11 do NIF português — o dígito de controlo da Autoridade Tributária,
- * algoritmo público (não é checksum inventado; respeita a régua do #928).
- *
- * Para os oito primeiros dígitos valem os pesos 9..2 (da esquerda para a
- * direita); o resto da soma módulo 11 decide o dígito: resto 0 ou 1 → `0`,
- * senão `11 - resto`. O nono dígito tem de bater com esse cálculo.
- */
 export function isValidNif(raw: string): boolean {
   const s = raw.replace(/\D/g, "");
   if (!/^\d{9}$/.test(s) || /^(\d)\1{8}$/.test(s)) return false;
@@ -290,11 +184,7 @@ const PERFIL_BR: PerfilDoPais = {
   codigo: "BR",
   nome: "Brasil",
   documento: DOCUMENTO_BR,
-  // O par que a tela da organização mostra no Brasil (issue #1946, item 4).
-  empresa: {
-    rotuloNomeLegal: "Razão social",
-    rotuloNumero: "CNPJ",
-  },
+  empresa: { rotuloNomeLegal: "Razão social", rotuloNumero: "CNPJ" },
   telefoneExemplo: "+5511999998888",
   lei: {
     nome: "LGPD",
@@ -302,24 +192,10 @@ const PERFIL_BR: PerfilDoPais = {
     artigo: "Art. 18, II",
     revisada: true,
   },
-  calendario: {
-    feriados: HOLIDAYS_BR_ISO,
-    rotulo: "feriados nacionais brasileiros",
-  },
+  calendario: { feriados: HOLIDAYS_BR_ISO, rotulo: "feriados nacionais brasileiros" },
   padroesDePii: [
-    {
-      tipo: "cpf",
-      marcador: "[CPF]",
-      fonte: "\\b\\d{3}\\.?\\d{3}\\.?\\d{3}-?\\d{2}\\b",
-      naoCobre:
-        "documento de outro país (o BI angolano `003862011LA042` não tem esta forma) nem CPF sem os 11 dígitos",
-    },
-    {
-      tipo: "cep",
-      marcador: "[CEP]",
-      fonte: "\\b\\d{5}-?\\d{3}\\b",
-      naoCobre: "código postal com letra (Canadá, Reino Unido) e CEP solto com menos de 8 dígitos",
-    },
+    { tipo: "cpf", marcador: "[CPF]", fonte: "\\b\\d{3}\\.?\\d{3}\\.?\\d{3}-?\\d{2}\\b", naoCobre: "..." },
+    { tipo: "cep", marcador: "[CEP]", fonte: "\\b\\d{5}-?\\d{3}\\b", naoCobre: "..." },
   ],
 };
 
@@ -338,152 +214,49 @@ const PERFIL_PT: PerfilDoPais = {
   codigo: "PT",
   nome: "Portugal",
   documento: DOCUMENTO_PT,
-  // Como Portugal chama o mesmo par (issue #1946, item 4): `Denominação social`
-  // é a designação legal da firma, e `NIPC` o Número de Identificação de
-  // Pessoas Coletivas — o análogo do CNPJ, e não um NIF de titular.
-  empresa: {
-    rotuloNomeLegal: "Denominação social",
-    rotuloNumero: "NIPC",
-  },
+  empresa: { rotuloNomeLegal: "Denominação social", rotuloNumero: "NIPC" },
   telefoneExemplo: "+351912345678",
   lei: {
     nome: "RGPD",
     numero: "Regulamento (UE) 2016/679",
     artigo: "art. 15.º",
-    // Revisada por IA em 2026-10-05, por delegação do dono (doc 88) — não é
-    // parecer jurídico. Registro completo no cabeçalho deste arquivo.
     revisada: true,
     revisadaPorIa: true,
     rotuloNoDocumento: "Direito exercido",
   },
-  // Alínea f) do art. 15.º, n.º 1: a autoridade portuguesa. Conferida em
-  // 2026-10-05 na fonte primária (site oficial da CNPD) junto com o resto da
-  // revisão do doc 88; a mesma ressalva vale — revisão por IA, sem advogado.
-  autoridadeDeSupervisao: {
-    nome: "Comissão Nacional de Proteção de Dados (CNPD)",
-    site: "https://www.cnpd.pt",
-  },
-  calendario: {
-    feriados: HOLIDAYS_PT_ISO,
-    rotulo: "feriados nacionais portugueses",
-  },
-  padroesDePii: [
-    {
-      // ANTES do NIF: `+351 912 345 678` tem três blocos que o padrão de NIF
-      // também casaria (o miolo `912 345 678`), e o telefone é o dono do número.
-      tipo: "telefonePT",
-      marcador: "[TELEFONE]",
-      fonte: "\\+351[\\s.-]?\\d{3}[\\s.-]?\\d{3}[\\s.-]?\\d{3}",
-      naoCobre:
-        "telemóvel de 9 dígitos sem o `+351` — é indistinguível de um NIF e os dois são PII; o que separa é o prefixo",
-    },
-    {
-      tipo: "iban",
-      marcador: "[IBAN]",
-      fonte: "\\bPT\\d{2}(?:\\s?\\d{4}){5}\\s?\\d\\b",
-      naoCobre: "IBAN de outro país e IBAN colado a letra sem o prefixo `PT`",
-    },
-    {
-      tipo: "nif",
-      marcador: "[NIF]",
-      // O lookahead deixa o CPF separado (`123.456.789-09`) para o padrão
-      // brasileiro: sem ele, os nove primeiros dígitos viravam `[NIF]` e os
-      // dois do dígito de controlo sobravam no texto (medido na cerca
-      // `mascara-da-ingestao-tem-o-brasil-por-baixo`).
-      fonte: "\\b(?:PT\\s?)?\\d{3}[ .]?\\d{3}[ .]?\\d{3}(?![.\\s-]\\d{2}\\b)\\b",
-      naoCobre:
-        "NIF colado a letra sem o prefixo `PT` (ex.: `nif123456789`) e NIF com menos de 9 dígitos",
-    },
-    {
-      tipo: "codigoPostal",
-      marcador: "[CODIGO_POSTAL]",
-      fonte: "\\b\\d{4}[-\\s]\\d{3}\\b",
-      naoCobre:
-        "código postal sem separador (7 dígitos) e código estrangeiro (CEP brasileiro usa ponto e 8 dígitos)",
-    },
-  ],
+  autoridadeDeSupervisao: { nome: "Comissão Nacional de Proteção de Dados (CNPD)", site: "https://www.cnpd.pt" },
+  calendario: { feriados: HOLIDAYS_PT_ISO, rotulo: "feriados nacionais portugueses" },
+  padroesDePii: [],
 };
 
-/**
- * O registro de países conhecidos.
- *
- * ⚠️ Conhecer ≠ oferecer. A lista que o operador escolhe é
- * `paisesOferecidos()`, e ela exige `lei.revisada`. Entram aqui, à medida do
- * trabalho de cada país: documento (forma, e checksum só quando é público),
- * lei com citação revisada, calendário de feriados e padrões de PII. País
- * incompleto mora aqui com o que já tem — nunca meio perfil publicado.
- *
- * Exportado mutável de propósito: os testes de tabela registram um país
- * sintético para provar o mecanismo sem publicar citação não revisada.
- */
-export const PERFIS_DO_PAIS: Record<CodigoDePais, PerfilDoPais> = {
-  BR: PERFIL_BR,
-  PT: PERFIL_PT,
-};
+export const PERFIS_DO_PAIS: Record<CodigoDePais, PerfilDoPais> = { BR: PERFIL_BR, PT: PERFIL_PT };
 
-/** O perfil de um código; vazio ou desconhecido degrada para o Brasil. */
 export function perfilDoPais(codigo: CodigoDePais | null | undefined): PerfilDoPais {
   const chave = (codigo ?? "").trim().toUpperCase();
   if (chave === "") return PERFIS_DO_PAIS[PAIS_PADRAO]!;
   return PERFIS_DO_PAIS[chave] ?? PERFIS_DO_PAIS[PAIS_PADRAO]!;
 }
 
-/** O que o seletor de Configurações › Empresa oferece. */
 export function paisesOferecidos(): PerfilDoPais[] {
   return Object.values(PERFIS_DO_PAIS)
     .filter((p) => p.lei?.revisada === true)
     .sort((a, b) => a.nome.localeCompare(b.nome));
 }
 
-/** A citação pronta para o documento, ou `null` quando não há lei revisada. */
 export function citacaoDaLei(perfil: PerfilDoPais): string | null {
   const lei = perfil.lei;
   if (!lei || !lei.revisada) return null;
   return `${lei.nome} ${lei.artigo} (${lei.numero})`;
 }
 
-/**
- * O perfil do país da ORGANIZAÇÃO.
- *
- * Degrada para o Brasil quando a linha da organização não vem (RLS negando,
- * linha removida no meio da requisição) — é o mesmo valor que a coluna vazia
- * representa, ou seja, o comportamento de antes desta feature. Derrubar um
- * cadastro de contato porque a leitura de um campo de configuração falhou
- * seria trocar um rótulo errado por um formulário que não salva (doutrina do
- * `moeda-da-org`). O silêncio, porém, deixa RASTRO: sem ele, uma organização
- * em outro país segue afirmando a lei brasileira sem que ninguém perceba.
- */
-export async function perfilDaOrganizacao(
-  supabase: SupabaseClient,
-  orgId: string,
-): Promise<PerfilDoPais> {
-  const { data, error } = await supabase
-    .from("organizations")
-    .select("country")
-    .eq("id", orgId)
-    .maybeSingle();
-
-  const declarado = (data as { country?: string | null } | null)?.country ?? null;
-  const perfil = perfilDoPais(declarado);
-
-  const chave = (declarado ?? "").trim().toUpperCase();
-  if (chave !== "" && !PERFIS_DO_PAIS[chave]) {
-    const motivo = `país ${chave} não tem perfil revisado; valendo ${perfil.codigo}`;
-    console.error("[perfil-do-pais] caiu no padrão", { orgId, motivo });
-    void import("@sentry/nextjs")
-      .then((Sentry) => {
-        Sentry.captureMessage(`[perfil-do-pais] ${motivo}`, {
-          level: "warning",
-          tags: { subsystem: "legal" },
-          extra: { organization_id: orgId },
-        });
-      })
-      .catch(() => {
-        /* sem Sentry configurado: o console.error acima é o que resta */
-      });
-  } else if (error) {
-    console.error("[perfil-do-pais] caiu no padrão", { orgId, motivo: error.message });
+export async function perfilDaOrganizacao(_dbOrClient: unknown, orgId: string): Promise<PerfilDoPais> {
+  try {
+    const result = await dbQuery("SELECT country FROM organizations WHERE id = ? LIMIT 1", [orgId]);
+    const row = result.rows[0] as { country?: string | null } | undefined;
+    const declarado = row?.country ?? null;
+    return perfilDoPais(declarado);
+  } catch (error) {
+    console.error("[perfil-do-pais] erro ao ler perfil:", { orgId, error });
+    return perfilDoPais(PAIS_PADRAO);
   }
-
-  return perfil;
 }

@@ -1,17 +1,13 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { cookieSecure } from "@/lib/supabase/cookie-secure";
 import { NextResponse, type NextRequest } from "next/server";
 import { env } from "@/lib/env";
-import { fetchDoServidor } from "@/lib/supabase/fetch-do-servidor";
-import { urlDoSupabaseNoServidor } from "@/lib/supabase/url-do-servidor";
 import { isPublicPath } from "@/lib/auth/public-paths";
 import { CABECALHO_SEM_CSS, PARAMETRO_SEM_CSS } from "@/lib/branding/sem-css-personalizado";
 import {
   verifyImpersonateCookieEdge,
   IMPERSONATE_COOKIE_NAME_EDGE,
 } from "@/lib/impersonate/cookie-edge";
-
-const COOKIE_NAME = "sb-deskcomm-auth";
+import { getSession } from "@/lib/auth/local";
+import { isSetupComplete } from "@/lib/db/local";
 
 export async function proxy(request: NextRequest) {
   // Saída de emergência do CSS personalizado. ANTES do `NextResponse.next`: ele
@@ -29,6 +25,7 @@ export async function proxy(request: NextRequest) {
   response.headers.set("x-request-id", requestId);
 
   const { pathname, search } = request.nextUrl;
+
   // Recupera retornos de OAuth social já emitidos antes da landing pública existir.
   // Apenas a navegação é tratada: o vínculo de conta segue protegido pelos guards canônicos.
   // Passa adiante só o SINAL `connected=1` — nunca o `connect_token` nem o valor recebido.
@@ -43,6 +40,7 @@ export async function proxy(request: NextRequest) {
     landing.headers.set("Referrer-Policy", "no-referrer");
     return landing;
   }
+
   // Expose pathname to Server Components via header (used by onboarding layout).
   response.headers.set("x-pathname", pathname);
   request.headers.set("x-pathname", pathname);
@@ -54,50 +52,48 @@ export async function proxy(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
   const isAdminSurface = host.startsWith("admin.") || pathname.startsWith("/admin");
 
+  // Rotas públicas (não precisam de autenticação)
   if (isPublicPath(pathname)) {
     return response;
   }
 
-  const supabase = createServerClient(
-    // #1082: base na URL pública, endereço interno só no transporte (ver
-    // `lib/supabase/fetch-do-servidor.ts`). O middleware não gera link, mas
-    // segue a mesma regra dos outros dois clients — um desenho só.
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      global: {
-        fetch: fetchDoServidor(
-          urlDoSupabaseNoServidor(env.SUPABASE_SERVER_URL, env.NEXT_PUBLIC_SUPABASE_URL),
-          env.NEXT_PUBLIC_SUPABASE_URL,
-        ),
-      },
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            request.cookies.set(name, value);
-            response.cookies.set(name, value, options);
-          });
-        },
-      },
-      cookieOptions: {
-        name: COOKIE_NAME,
-        sameSite: "strict",
-        httpOnly: true,
-        secure: cookieSecure(),
-        path: "/",
-      },
-    },
-  );
+  // ─── VERIFICAÇÃO DE SETUP INICIAL ──────────────────────────────────────────
+  // Se o setup não foi completado, redireciona para /setup (exceto rotas de setup/API)
+  const setupPaths = ["/setup", "/api/v1/setup"];
+  const isSetupRoute = setupPaths.some((p) => pathname.startsWith(p));
 
-  // Validate JWT server-side (NEVER use getSession on backend per CLAUDE.md).
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  if (!isSetupRoute) {
+    const setupDone = await isSetupComplete();
+    if (!setupDone) {
+      // API routes respondem com JSON
+      if (pathname.startsWith("/api/")) {
+        return new NextResponse(
+          JSON.stringify({
+            error: {
+              code: "setup_required",
+              message: "Sistema não configurado. Complete a instalação em /setup",
+            },
+          }),
+          {
+            status: 503,
+            headers: {
+              "content-type": "application/json",
+              "x-request-id": requestId,
+            },
+          },
+        );
+      }
+      // UI routes redirecionam para /setup
+      const setupUrl = new URL("/setup", request.url);
+      setupUrl.searchParams.set("next", pathname + search);
+      return NextResponse.redirect(setupUrl);
+    }
+  }
 
-  if (!user) {
+  // ─── AUTENTICAÇÃO LOCAL (JWT + Cookie) ────────────────────────────────────
+  const session = await getSession();
+
+  if (!session) {
     // API routes must respond with JSON envelope (contract: {error:{code,message}})
     // — never redirect HTML to JSON consumers. UI routes redirect to /login as before.
     if (pathname.startsWith("/api/")) {
@@ -121,6 +117,13 @@ export async function proxy(request: NextRequest) {
     loginUrl.searchParams.set("next", pathname + search);
     return NextResponse.redirect(loginUrl);
   }
+
+  // Adiciona sessão aos headers para uso downstream
+  request.headers.set("x-user-id", session.userId);
+  request.headers.set("x-org-id", session.organizationId);
+  request.headers.set("x-user-role", session.role);
+  request.headers.set("x-user-email", session.email);
+  request.headers.set("x-user-name", session.name);
 
   // EPIC-11 S-11.07: validate impersonate cookie on /app/* paths. Middleware
   // runs in Edge — no DB access, only HMAC + expiry. On any failure we delete
@@ -146,8 +149,8 @@ export async function proxy(request: NextRequest) {
   // check is server-side in `requirePlatformAdmin`). Skip the RPC for
   // `/admin/forbidden` (rendered to non-admins, would otherwise loop).
   if (isAdminSurface && pathname.startsWith("/admin") && pathname !== "/admin/forbidden") {
-    const { data: isAdmin, error } = await supabase.rpc("fn_is_platform_admin");
-    if (error || !isAdmin) {
+    // Verifica role admin local
+    if (session.role !== "dono" && session.role !== "admin") {
       return NextResponse.redirect(new URL("/admin/forbidden", request.url));
     }
   }

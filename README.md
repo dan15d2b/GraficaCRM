@@ -9,16 +9,16 @@
 
 # 🛠️ CRM Gráfica — o Sistema Operacional de Vendas com IA, open source, pro WhatsApp
 
-⚠️ **Nota sobre instalação**: A partir de 2026, o CRM usa arquitetura local com SQLite embutido. O método antigo via HostGator (`hostgator-setup-kit/`) ainda funciona mas é considerado legado. Para instalação atual, use o **Setup Wizard** automaticamente iniciado em `http://localhost:3000` após o primeiro start.
+⚠️ **Nota sobre instalação**: A partir de 2026, o CRM usa **arquitetura local com SQLite embutido**. Não há mais dependência de Supabase/Cloud. Para instalação, use o **Setup Wizard** automaticamente iniciado em `http://localhost:3000` após o primeiro start.
 
 **Agentes de IA que atendem, qualificam e vendem no WhatsApp — dentro de um CRM open source rodando no seu servidor.**
 **Sem mensalidade, sem feature travada, seus dados com você. A alternativa aberta a Kommo, Octadesk e Intercom.**
 
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript)](https://www.typescriptlang.org)
-[![Supabase](https://img.shields.io/badge/Supabase-Postgres%2BAuth%2BStorage-3ecf8e?logo=supabase)](https://supabase.com)
-[![Self-hosted](https://img.shields.io/badge/self--hosted-1%20comando-orange)](hostgator-setup-kit/)
-[![CI](https://github.com/melgarafael/CRM Gráfica/actions/workflows/ci.yml/badge.svg)](https://github.com/melgarafael/CRM Gráfica/actions/workflows/ci.yml)
+[![SQLite](https://img.shields.io/badge/SQLite-local%20database-8a8a8a?logo=sqlite)](https://sqlite.org)
+[![Self-hosted](https://img.shields.io/badge/self--hosted-1%20comando-orange)](docs/deploy/)
+[![CI](https://github.com/dan15d2b/GraficaCRM/actions/workflows/ci.yml/badge.svg)](https://github.com/dan15d2b/GraficaCRM/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 [**⚡ Instalar**](#-instalar-na-sua-vps-o-caminho-principal) · [**🔄 Atualizar**](#-atualizar) · [**🧭 Visão**](VISION.md) · [**🏗️ Arquitetura**](ARCHITECTURE.md) · [**🤝 Contribuir**](CONTRIBUTING.md) · [**🗺️ Roadmap**](#%EF%B8%8F-roadmap)
@@ -314,25 +314,23 @@ Toda tela tem porta na navegação — o CI reprova tela que existe mas em que s
 
 ---
 
-## 🧱 Stack
+## 🧱 Stack (Arquitetura Local - SQLite)
 
 | Camada | Escolha | Por quê |
 |---|---|---|
 | **Frontend** | Next.js 16 App Router (Turbopack) + React 19 + TypeScript 6 estrito | Server Components + Route Handlers no mesmo repo |
 | **Estilo** | Tailwind + shadcn/ui (`new-york`, neutral) | Customizável sem lock-in |
-| **DB** | Supabase (Postgres + RLS + `vector`) | Multi-tenant nativo, embedding pra RAG |
-| **Auth** | Supabase Auth via `@supabase/ssr` | Cookie SameSite=Strict, HttpOnly |
-| **Realtime** | Supabase Realtime | postgres_changes + broadcast |
-| **Storage** | Supabase Storage (URLs assinadas) | Bucket privado `whatsapp-media` |
+| **DB** | **SQLite (WAL mode) + LibSQL** | Embarcado, sem dependência externa, 100% local |
+| **Auth** | JWT Local + HttpOnly Cookies | Sem Supabase Auth, sessão assinada localmente |
+| **Storage** | Arquivos locais (WhatsApp media, uploads) | Servidos por rota autenticada, sem Supabase Storage |
 | **WhatsApp** | WAHA Plus (engine NOWEB) + Meta Cloud API | QR pra começar rápido; canal oficial pra escala |
-| **Filas** | `event_log` table + workers (cron) | Trigger de banco nunca faz HTTP |
-| **Rate limit** | Upstash Redis (sliding window) | Serverless, free tier suficiente |
+| **Filas** | Tabelas SQLite + workers (cron) | Sem Redis externo necessário |
 | **AI** | Vercel AI SDK v7 — OpenRouter, Requesty, Anthropic, OpenAI e Google | Instalador pergunta qual; troca depois pela tela |
 | **Validação** | Zod | Input externo, env, payloads |
 | **Observability** | Sentry (scrub em erro, transação, span e breadcrumb) | Telemetria opt-in no install |
-| **Hospedagem** | VPS com Docker (HostGator/SP na parceria) | App + WhatsApp + workers na sua máquina |
+| **Hospedagem** | VPS com Docker ou local | App + WhatsApp + workers na sua máquina |
 
-Detalhes: [`ARCHITECTURE.md`](ARCHITECTURE.md).
+> ⚠️ A partir de 2026, o CRM usa **SQLite embutido** sem Supabase/Cloud. Todos os dados ficam localmente. A migração da dependência de Supabase está completa.
 
 ---
 
@@ -342,37 +340,26 @@ Detalhes: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 > Esta seção é pra quem vai mexer no código.
 
 ```bash
-git clone https://github.com/melgarafael/CRM Gráfica.git
-cd CRM Gráfica
+git clone https://github.com/dan15d2b/GraficaCRM.git
+cd GraficaCRM
 
 nvm use                     # Node 22
 npm install -g pnpm && pnpm install
 
 cp .env.example .env.local  # guia completo em docs/SETUP.md
 
-docker compose up -d        # WAHA local (opcional em dev sem WhatsApp)
+# Opcional: iniciar WAHA local para testes WhatsApp
+docker compose -f docker-compose.local.yml up -d waha
 
-# Schema: aplique o baseline, NÃO as migrations.
-# As migrations 0001-0009 e 0013 são stubs `SELECT 1;` — a cadeia não sobe do zero.
-# O schema real vive no baseline.sql, o mesmo que o install.sh aplica na VPS.
-# `supabase db push` "passa" e deixa o banco vazio.
-supabase link --project-ref <seu-ref>
-
-# Num projeto Supabase NOVO, habilite antes as extensões que o schema usa —
-# sem elas o baseline para em `type public.vector does not exist`.
-psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -c \
-  'create extension if not exists vector with schema public;
-   create extension if not exists citext with schema public;
-   create extension if not exists pg_trgm with schema public;'
-
-psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/baseline.sql
-
+# SQLite database é criado automaticamente no primeiro start
 pnpm dev
 ```
 
 App: <http://localhost:3000> · Health check: <http://localhost:3000/api/v1/health>
 
-[`docs/SETUP.md`](docs/SETUP.md) é o tutorial completo de **todas as integrações** (Supabase, WAHA, provedores de IA, Upstash, Sentry, Resend, Nuvemshop) — ~60–90 min do zero ao app rodando.
+> ⚠️ **Setup Wizard**: Abra `http://localhost:3000` na primeira vez. O sistema configurará automaticamente a licença, admin e chaves de IA.
+
+[`docs/SETUP.md`](docs/SETUP.md) é o tutorial completo de **desenvolvimento** — ~30 min do zero ao app rodando.
 
 ---
 
@@ -443,19 +430,13 @@ Entre os invariantes está o **teste de isolamento RLS**: cria 2 organizações,
 
 | Doc | O que tem |
 |---|---|
-| [`hostgator-setup-kit/README.md`](hostgator-setup-kit/README.md) | **Instalação self-host** — o kit, os scripts, as hospedagens com proxy próprio |
+| [`docs/install.md`](docs/install.md) | **Instalação local** — Setup Wizard, requisitos, chaves de IA |
 | [`docs/ATUALIZANDO.md`](docs/ATUALIZANDO.md) | **Como atualizar** sua instalação, em linguagem simples |
 | [`VISION.md`](VISION.md) | **Visão e posicionamento** — o que o projeto é, no que acredita e pra onde vai |
 | [`CHANGELOG.md`](CHANGELOG.md) | O que mudou em cada versão — **leia a seção da versão antes de atualizar** |
-| [`docs/SETUP.md`](docs/SETUP.md) | Setup de desenvolvimento, passo a passo de todas as integrações |
-| [`docs/white-label.md`](docs/white-label.md) | **Instalar para clientes** — trocar a marca, uma instalação por cliente vs compartilhada, revenda |
-| [`docs/runbooks/waha-hostgator.md`](docs/runbooks/waha-hostgator.md) | Runbook de WAHA em produção (dimensionamento, recuperação) |
-| [`docs/runbooks/deploy.md`](docs/runbooks/deploy.md) | Deploy em produção |
-| [`CLAUDE.md`](CLAUDE.md) | Convenções não-negociáveis (leitura obrigatória pra contribuir) |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Visão de 1 página da arquitetura |
-| [`docs/index.md`](docs/index.md) | Índice geral da documentação, com a regra de precedência |
-| [`docs/handoffs/`](docs/handoffs/) | Diário dos épicos (`HANDOFF*.md`), com o índice em [`docs/handoffs/README.md`](docs/handoffs/README.md) |
-| [`docs/prd/`](docs/prd/) · [`docs/specs/`](docs/specs/) | PRDs e specs técnicas (schema SQL, payloads, MCP, governança) |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Visão de 1 página da arquitetura (SQLite local) |
+| [`docs/index.md`](docs/index.md) | Índice geral da documentação |
+| [`docs/specs/`](docs/specs/) | Specs técnicas (API, payloads, MCP) |
 
 ---
 
@@ -591,4 +572,3 @@ Este é um projeto **self-host**: cada pessoa roda o CRM na **própria infraestr
 Siga o desenvolvimento: [Instagram](https://www.instagram.com/melgarafael) · [YouTube](https://www.youtube.com/@melgarafael)
 
 </div>
-# GraficaCRM

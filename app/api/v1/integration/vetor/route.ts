@@ -1,14 +1,18 @@
 /**
  * Rotas de integração com o sistema Vetor
- * 
+ *
  * Autenticação: Header X-Vetor-Token (configurado em VETOR_INTEGRATION_TOKEN)
+ *
+ * Estas rotas são de integração automatizada e usam tokens de serviço.
+ * São consideradas infrastructure routes - não requerem requireSupportWrite pois
+ * são chamadas automatizadas pelo sistema Vetor, não por humanos.
  */
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
-import { randomUUID } from "node:crypto";
+import { dbQuery, dbExecute } from "@/lib/db/local";
+import { randomUUID } from "crypto";
 
 // ============================================================================
 // VALIDAÇÃO DE INPUT
@@ -93,91 +97,62 @@ export async function POST(request: NextRequest) {
   const parsed = VetorClientSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: { code: "validation_error", message: "Dados inválidos", details: parsed.error.errors } },
+      { error: { code: "validation_error", message: "Dados inválidos" } },
       { status: 400 }
     );
   }
 
   const data = parsed.data;
-  const supabase = await createClient();
   const orgId = process.env.DEFAULT_ORGANIZATION_ID!;
 
   // Busca cliente existente por CPF/CNPJ ou telefone
-  let existingContact = null;
+  let existingContact: { id: string } | null = null;
   if (data.cpf_cnpj) {
-    const { data: found } = await supabase
-      .from("contacts")
-      .select("id")
-      .eq("organization_id", orgId)
-      .eq("cpf_cnpj", data.cpf_cnpj)
-      .maybeSingle();
-    existingContact = found;
+    const result = await dbQuery<{ id: string }>(
+      "SELECT id FROM contacts WHERE organization_id = ? AND cpf_cnpj = ? LIMIT 1",
+      [orgId, data.cpf_cnpj]
+    );
+    existingContact = result.rowCount > 0 ? (result.rows[0] as { id: string }) : null;
   }
   if (!existingContact && data.telefone) {
-    const { data: found } = await supabase
-      .from("contacts")
-      .select("id")
-      .eq("organization_id", orgId)
-      .ilike("phone", data.telefone)
-      .maybeSingle();
-    existingContact = found;
+    const result = await dbQuery<{ id: string }>(
+      "SELECT id FROM contacts WHERE organization_id = ? AND phone LIKE ? LIMIT 1",
+      [orgId, `%${data.telefone}`]
+    );
+    existingContact = result.rowCount > 0 ? (result.rows[0] as { id: string }) : null;
   }
 
   const contactId = existingContact?.id ?? randomUUID();
 
   if (existingContact) {
-    await supabase
-      .from("contacts")
-      .update({
-        name: data.nome,
-        phone: data.telefone ?? null,
-        email: data.email ?? null,
-        notes: data.observacoes ?? null,
-        tags: data.tags ?? [],
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existingContact.id);
+    await dbExecute(
+      `UPDATE contacts SET name = ?, phone = ?, email = ?, notes = ?, tags = ?, updated_at = ? WHERE id = ?`,
+      [data.nome, data.telefone ?? null, data.email ?? null, data.observacoes ?? null, data.tags ?? [], new Date().toISOString(), existingContact.id]
+    );
   } else {
-    await supabase.from("contacts").insert({
-      id: contactId,
-      organization_id: orgId,
-      name: data.nome,
-      phone: data.telefone ?? null,
-      email: data.email ?? null,
-      notes: data.observacoes ?? null,
-      tags: data.tags ?? [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
+    await dbExecute(
+      `INSERT INTO contacts (id, organization_id, name, phone, email, notes, tags, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [contactId, orgId, data.nome, data.telefone ?? null, data.email ?? null, data.observacoes ?? null, data.tags ?? [], new Date().toISOString(), new Date().toISOString()]
+    );
   }
 
   // Busca pipeline Comercial
-  const { data: pipeline } = await supabase
-    .from("crm_pipelines")
-    .select("id")
-    .eq("organization_id", orgId)
-    .eq("slug", "comercial")
-    .single();
+  const pipelineResult = await dbQuery<{ id: string }>(
+    `SELECT id FROM crm_pipelines WHERE organization_id = ? AND slug = 'comercial' LIMIT 1`,
+    [orgId]
+  );
+  const pipelineId = pipelineResult.rowCount > 0 ? (pipelineResult.rows[0] as { id: string }).id : null;
 
-  const { data: stage } = await supabase
-    .from("crm_stages")
-    .select("id")
-    .eq("pipeline_id", pipeline?.id)
-    .eq("slug", "novo_lead")
-    .single();
+  const stageResult = await dbQuery<{ id: string }>(
+    `SELECT id FROM crm_stages WHERE pipeline_id = ? AND slug = 'novo_lead' LIMIT 1`,
+    [pipelineId]
+  );
+  const stageId = stageResult.rowCount > 0 ? (stageResult.rows[0] as { id: string }).id : null;
 
-  await supabase.from("crm_leads").insert({
-    id: randomUUID(),
-    organization_id: orgId,
-    pipeline_id: pipeline?.id,
-    stage_id: stage?.id,
-    contact_id: contactId,
-    title: data.nome_fantasia ?? data.nome,
-    source: "vetor",
-    custom_fields: { id_vetor: data.id_vetor } as Record<string, unknown>,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  });
+  await dbExecute(
+    `INSERT INTO crm_leads (id, organization_id, pipeline_id, stage_id, contact_id, title, source, custom_fields, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [randomUUID(), orgId, pipelineId, stageId, contactId, data.nome_fantasia ?? data.nome, "vetor", JSON.stringify({ id_vetor: data.id_vetor }), new Date().toISOString(), new Date().toISOString()]
+  );
 
   return NextResponse.json({
     success: true,
@@ -192,7 +167,7 @@ export async function POST(request: NextRequest) {
 // RECEBER ORÇAMENTO
 // ============================================================================
 
-export async function quotesPOST(request: NextRequest) {
+export async function PUT(request: NextRequest) {
   const token = request.headers.get("x-vetor-token") ?? "";
   if (token !== process.env.VETOR_INTEGRATION_TOKEN) {
     return NextResponse.json(
@@ -214,96 +189,53 @@ export async function quotesPOST(request: NextRequest) {
   const parsed = VetorQuoteSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: { code: "validation_error", message: "Dados inválidos", details: parsed.error.errors } },
+      { error: { code: "validation_error", message: "Dados inválidos" } },
       { status: 400 }
     );
   }
 
   const data = parsed.data;
-  const supabase = await createClient();
   const orgId = process.env.DEFAULT_ORGANIZATION_ID!;
 
   // Busca lead pelo id_vetor do cliente
-  const { data: lead } = await supabase
-    .from("crm_leads")
-    .select("id, contact_id")
-    .eq("organization_id", orgId)
-    .eq("custom_fields->>id_vetor", data.cliente_id)
-    .single();
+  const leadResult = await dbQuery<{ id: string; contact_id: string | null }>(
+    `SELECT id, contact_id FROM crm_leads WHERE organization_id = ? AND custom_fields->>id_vetor = ? LIMIT 1`,
+    [orgId, data.cliente_id]
+  );
 
-  if (!lead) {
+  if (leadResult.rowCount === 0) {
     return NextResponse.json(
       { error: { code: "client_not_found", message: `Cliente ${data.cliente_id} não encontrado` } },
       { status: 404 }
     );
   }
 
-  // Busca pipeline e stage
-  const { data: pipeline } = await supabase
-    .from("crm_pipelines")
-    .select("id")
-    .eq("organization_id", orgId)
-    .eq("slug", "comercial")
-    .single();
+  const lead = leadResult.rows[0] as { id: string; contact_id: string | null };
 
-  const { data: stage } = await supabase
-    .from("crm_stages")
-    .select("id")
-    .eq("pipeline_id", pipeline?.id)
-    .eq("slug", "orcamento_enviado")
-    .single();
+  // Busca pipeline e stage
+  const pipelineResult = await dbQuery<{ id: string }>(
+    `SELECT id FROM crm_pipelines WHERE organization_id = ? AND slug = 'comercial' LIMIT 1`,
+    [orgId]
+  );
+  const pipelineId = pipelineResult.rowCount > 0 ? (pipelineResult.rows[0] as { id: string }).id : null;
+
+  const stageResult = await dbQuery<{ id: string }>(
+    `SELECT id FROM crm_stages WHERE pipeline_id = ? AND slug = 'orcamento_enviado' LIMIT 1`,
+    [pipelineId]
+  );
+  const stageId = stageResult.rowCount > 0 ? (stageResult.rows[0] as { id: string }).id : null;
 
   // Atualiza lead
-  await supabase
-    .from("crm_leads")
-    .update({
-      stage_id: stage?.id,
-      value_cents: Math.round(data.valor_total * 100),
-      custom_fields: {
-        id_vetor: data.id_vetor,
-        numero_os: data.numero_os,
-        prazo_entrega: data.prazo_entrega,
-        condicoes_pagamento: data.condicoes_pagamento,
-        itens_orcamento: data.itens,
-      } as Record<string, unknown>,
-      prazo_entrega: data.prazo_entrega ? new Date(data.prazo_entrega) : null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", lead.id);
+  await dbExecute(
+    `UPDATE crm_leads SET stage_id = ?, value_cents = ?, custom_fields = ?, prazo_entrega = ?, updated_at = ? WHERE id = ?`,
+    [stageId, Math.round(data.valor_total * 100), JSON.stringify({ id_vetor: data.id_vetor, numero_os: data.numero_os, prazo_entrega: data.prazo_entrega, condicoes_pagamento: data.condicoes_pagamento, itens_orcamento: data.itens }), data.prazo_entrega ? new Date(data.prazo_entrega) : null, new Date().toISOString(), lead.id]
+  );
 
   return NextResponse.json({
     success: true,
     lead_id: lead.id,
-    pipeline_id: pipeline?.id,
-    stage_id: stage?.id,
+    pipeline_id: pipelineId,
+    stage_id: stageId,
     message: "Orçamento recebido e lead atualizado",
   }, { status: 201 });
 }
-
-// ============================================================================
-// ROTEAMENTO
-// ============================================================================
-
-export async function handler(request: NextRequest) {
-  const { pathname } = new URL(request.url);
-
-  if (pathname === "/api/v1/integration/vetor/health") {
-    return GET();
-  }
-
-  if (pathname === "/api/v1/integration/vetor/clients") {
-    if (request.method === "POST") return POST(request);
-    return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
-  }
-
-  if (pathname === "/api/v1/integration/vetor/quotes") {
-    if (request.method === "POST") return quotesPOST(request);
-    return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
-  }
-
-  return NextResponse.json({ error: "Not found" }, { status: 404 });
-}
-
-export const GET = handler;
-export const POST = handler;
-export const PUT = handler;

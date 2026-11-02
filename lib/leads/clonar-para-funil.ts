@@ -28,6 +28,7 @@ import { type ModoReabertura } from "@/lib/leads/reabertura";
 export interface OrigemParaClonar {
   id: string;
   pipeline_id: string;
+  stage_id?: string;
   status: string;
   title: string;
   description?: string | null;

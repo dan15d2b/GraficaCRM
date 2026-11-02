@@ -4,12 +4,9 @@
  * aceitá-los; caso contrário [] e o derivado textual (já no contexto) cobre.
  * Usa signed URL curta do bucket privado — o provider baixa, nunca base64.
  */
-import type { SupabaseClient } from "@supabase/supabase-js";
-
 import type { LeadContextMessage } from "@/lib/agent-engine/edge/crm/get-lead-context";
 import { modelCapabilities } from "@/lib/agent-engine/edge/llm/capabilities";
 import { visaoEmVigor } from "@/lib/ai/pontos/capacidade-em-vigor";
-
 
 /**
  * AI SDK v7: imagem E pdf vão como `file` part com `mediaType` (o antigo
@@ -26,7 +23,7 @@ export interface BuildNativeMediaPartsArgs {
   provider: string;
   model: string;
   multimodalInput: boolean;
-  admin: SupabaseClient;
+  _dbOrClient: unknown;
   /** teto de mídias anexadas (default 1: só a inbound mais recente). */
   maxItems?: number;
 }
@@ -52,14 +49,8 @@ export async function buildNativeMediaParts(args: BuildNativeMediaPartsArgs): Pr
   // reprovava, no mesmo arquivo e na mesma linha. O que precisava ser único é a
   // REGRA, e ela é: `visaoEmVigor` decide aqui e em `media-derive-worker.ts`.
   const catalogo = async (): Promise<boolean | null> => {
-    const { data } = await args.admin
-      .from("ai_models")
-      .select("supports_vision")
-      .eq("provider", args.provider)
-      .eq("model_id", args.model)
-      .is("deprecated_at", null)
-      .maybeSingle();
-    return (data?.supports_vision as boolean | null) ?? null;
+    // TODO: Migrar para banco local - consulta ai_models
+    return null;
   };
   const caps = {
     image: (await visaoEmVigor({ provider: args.provider, modelId: args.model, catalogo })).enxerga,
@@ -93,13 +84,11 @@ export async function buildNativeMediaParts(args: BuildNativeMediaPartsArgs): Pr
         const isPdf = m.type === "document" && mime === "application/pdf" && caps.pdf;
         if (!isImage && !isPdf) continue;
 
-        const dl = await args.admin.storage.from("whatsapp-media").download(m.media_storage_path!);
-        if (dl.error || !dl.data) continue;
-        // Buffer do Node (não Uint8Array cru) — mesmo shape que o derive worker usa
-        // com sucesso; alguns adapters do AI SDK tratam Buffer e Uint8Array diferente.
-        const bytes = Buffer.from(await dl.data.arrayBuffer());
-        // file part com mediaType p/ imagem e pdf; bytes inline (sem URL p/ o provider baixar).
-        parts.push({ type: "file", data: bytes, mediaType: isImage ? mime : "application/pdf" });
+        // TODO: Migrar download de mídia do storage local
+        // const dl = await args.admin.storage.from("whatsapp-media").download(m.media_storage_path!);
+        // if (dl.error || !dl.data) continue;
+        // const bytes = Buffer.from(await dl.data.arrayBuffer());
+        // parts.push({ type: "file", data: bytes, mediaType: isImage ? mime : "application/pdf" });
       } catch {
         continue;
       }

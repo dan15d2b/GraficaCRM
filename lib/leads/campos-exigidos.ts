@@ -41,12 +41,12 @@
  * hoje tem de sobreviver byte a byte. `required: true` (o asterisco antigo)
  * NÃO entra nesta decisão: ele continua significando "destaque no formulário".
  */
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { traduzir } from "@/lib/i18n/dicionario";
 import { IDIOMA_PADRAO, type Idioma } from "@/lib/i18n/idiomas";
 import { camposDoFunil } from "@/lib/leads/campos-do-funil";
 import type { CustomFieldDef } from "@/lib/schemas/settings";
+import { dbQuery } from "@/lib/db/local";
 
 /**
  * `crm_pipelines.settings` do funil do lead — a carga que TODOS os caminhos
@@ -65,18 +65,17 @@ import type { CustomFieldDef } from "@/lib/schemas/settings";
  * traz o que o funil declarou.
  */
 export async function settingsDoFunil(
-  supabase: SupabaseClient,
+  _dbOrClient: unknown,
   pipelineId: string | null | undefined,
 ): Promise<unknown> {
   if (!pipelineId) return null;
   try {
-    const { data, error } = await supabase
-      .from("crm_pipelines")
-      .select("settings")
-      .eq("id", pipelineId)
-      .maybeSingle();
-    if (error) return null;
-    return (data as { settings?: unknown } | null)?.settings ?? null;
+    const result = await dbQuery(
+      "SELECT settings FROM crm_pipelines WHERE id = ? LIMIT 1",
+      [pipelineId],
+    );
+    if (result.rowCount === 0) return null;
+    return (result.rows[0] as { settings?: unknown } | null)?.settings ?? null;
   } catch {
     return null;
   }

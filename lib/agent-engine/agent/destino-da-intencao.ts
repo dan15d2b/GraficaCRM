@@ -1,13 +1,11 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-
 import type { HandlerCtx } from "@/lib/api/handlers/types";
-import { ApiError } from "@/lib/api/types";
-import { resolveActiveLeadForContact, type LeadCandidate } from "@/lib/leads/active-lead";
+import { dbQuery } from "@/lib/db/local";
+import { logger } from "@/lib/logger";
 import {
-  COLUNAS_DA_ORIGEM,
   transfereParaOFunil,
   type OrigemDaTransferencia,
 } from "@/lib/leads/transfere-para-o-funil";
+import { resolveActiveLeadForContact, type LeadCandidate } from "@/lib/leads/active-lead";
 import { abreAvisoDeDestinoRecusado } from "./aviso-de-destino-recusado";
 
 export type StatusDoDestino =
@@ -36,13 +34,89 @@ export interface ResultadoDoDestino {
 }
 
 export interface DestinoDaIntencaoDeps {
-  admin: SupabaseClient;
+  _dbOrClient: unknown;
   organizationId: string;
   /** O CONTATO do turno (`leadId` em inbound-turn), não o id do negócio. */
   contactId: string;
   destinoPipelineId: string;
   destinoStageId: string | null;
   handlerCtx: HandlerCtx;
+}
+
+/**
+ * Busca leads abertos de um contato pelo banco local.
+ */
+async function buscarLeadsAbertosDoContato(
+  organizationId: string,
+  contactId: string,
+): Promise<LeadCandidate[]> {
+  try {
+    const resultado = await dbQuery(
+      `SELECT id, organization_id, pipeline_id, status, last_activity_at, created_at
+       FROM crm_leads
+       WHERE organization_id = ? AND contact_id = ? AND status = 'open'`,
+      [organizationId, contactId],
+    );
+    return (resultado.rows as any[]).map((row) => ({
+      id: row.id as string,
+      organization_id: row.organization_id as string,
+      pipeline_id: row.pipeline_id as string,
+      status: row.status as string,
+      last_activity_at: row.last_activity_at as string | null,
+      created_at: row.created_at as string,
+    })) as LeadCandidate[];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Busca o funil padrão da organização pelo banco local.
+ */
+async function buscarFunilPadrao(
+  organizationId: string,
+): Promise<string | null> {
+  try {
+    const resultado = await dbQuery(
+      `SELECT id FROM crm_pipelines
+       WHERE organization_id = ? AND is_default = 1 AND is_archived = 0
+       LIMIT 1`,
+      [organizationId],
+    );
+    if (resultado.rowCount === 0) return null;
+    return (resultado.rows[0] as { id?: string })?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Busca todas as etapas de um funil pelo banco local.
+ */
+async function buscarEtapasDoFunil(
+  organizationId: string,
+  pipelineId: string,
+): Promise<{ id: string; name: string; is_won: boolean; is_lost: boolean; is_archived: boolean; position: number; pipeline_id: string }[]> {
+  try {
+    const resultado = await dbQuery(
+      `SELECT id, name, is_won, is_lost, is_archived, position, pipeline_id
+       FROM crm_stages
+       WHERE organization_id = ? AND pipeline_id = ? AND is_archived = 0
+       ORDER BY position ASC`,
+      [organizationId, pipelineId],
+    );
+    return (resultado.rows as any[]).map((row) => ({
+      id: row.id as string,
+      name: row.name as string,
+      is_won: row.is_won === 1,
+      is_lost: row.is_lost === 1,
+      is_archived: row.is_archived === 1,
+      position: row.position as number,
+      pipeline_id: row.pipeline_id as string,
+    })) as any[];
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -69,79 +143,139 @@ export interface DestinoDaIntencaoDeps {
 export async function aplicaDestinoDaIntencao(
   deps: DestinoDaIntencaoDeps,
 ): Promise<ResultadoDoDestino> {
-  const { data, error } = await deps.admin
-    .from("crm_leads")
-    .select(`${COLUNAS_DA_ORIGEM}, last_activity_at`)
-    .eq("organization_id", deps.organizationId)
-    .eq("contact_id", deps.contactId)
-    .eq("status", "open");
-  if (error) return { status: "recusado", error: error.message };
+  const { organizationId, contactId, destinoPipelineId, destinoStageId, handlerCtx } = deps;
 
-  const abertos = ((data ?? []) as unknown as OrigemDaTransferencia[]).map(
-    (linha) => linha as OrigemDaTransferencia & LeadCandidate,
-  );
-  if (abertos.length === 0) return { status: "sem_negocio" };
+  try {
+    // 1. Busca leads abertos do contato
+    const candidatos = await buscarLeadsAbertosDoContato(organizationId, contactId);
 
-  // Primeiro o DESTINO: se o contato já tem negócio aberto lá, nada se move —
-  // e esta leitura vem antes de escolher o alvo, porque dois negócios abertos
-  // (um em cada funil) são ambíguos para `resolveActiveLeadForContact` e cairiam
-  // em `nao_roteado` com a resposta certa escondida atrás do motivo errado.
-  const noDestino = abertos.filter((linha) => linha.pipeline_id === deps.destinoPipelineId);
-  if (noDestino.length > 0) {
-    // Um único negócio, e ele já está no destino: o card é o próprio.
-    if (abertos.length === 1) return { status: "ja_no_destino", origemId: noDestino[0]!.id };
-    return { status: "destino_ocupado", origemId: noDestino[0]!.id };
-  }
+    // 2. Verifica se há leads abertos
+    if (candidatos.length === 0) {
+      return { status: "sem_negocio" };
+    }
 
-  const alvo = resolveActiveLeadForContact(abertos);
-  if (!alvo.routed) {
-    return { status: "nao_roteado", error: alvo.reason };
-  }
+    // 3. Verifica se o destino é sem funil (sem_destino)
+    if (!destinoPipelineId) {
+      return { status: "sem_destino" };
+    }
 
-  const origem = abertos.find((linha) => linha.id === alvo.leadId);
-  if (origem === undefined) return { status: "sem_negocio" };
+    // 4. Resolve o lead ativo do contato
+    const funilPadrao = await buscarFunilPadrao(organizationId);
+    const resolucao = resolveActiveLeadForContact(candidatos, { defaultPipelineId: funilPadrao });
 
-  const transferencia = await transfereParaOFunil(
-    deps.admin,
-    deps.organizationId,
-    deps.handlerCtx,
-    origem,
-    deps.destinoPipelineId,
-    deps.destinoStageId,
-    "Levado para outro funil pelo roteador de intenção",
-  ).catch(
-    // A régua LANÇA (#2297, caminho 1): `createLeadHandler` joga o 422
-    // `required_fields_missing` para cima, `transfereParaOFunil` não o captura e
-    // a exceção subia até o `catch` de `inbound-turn.ts` — que faz certo em não
-    // derrubar a resposta ao lead, mas só conseguia registrar em `runLog`. Aqui
-    // o negócio de ORIGEM é conhecido, então a recusa vira o MESMO `{ok:false}`
-    // de sempre e o aviso da Central nasce junto.
-    //
-    // SÓ a recusa da régua (#2302): `encerraDemanda` roda DEPOIS do clone e
-    // lança por conta própria (motivo inválido, falha de banco). Capturar tudo
-    // fazia o aviso dizer "não move nada" com o card já criado no destino —
-    // essas falhas voltam ao `catch` de `inbound-turn.ts`, como antes.
-    // Resíduo conhecido: a etapa de PERDA da origem com campo exigido também
-    // lança `required_fields_missing`, depois do clone, e cai aqui — o código
-    // não distingue de onde ele veio.
-    (err: unknown): { ok: false; error: string } => {
-      if (err instanceof ApiError && err.code === "required_fields_missing") {
-        return { ok: false, error: err.code };
+    if (!resolucao.routed) {
+      // Nenhum lead elegível ou ambiguidade
+      return {
+        status: resolucao.reason === "no_open_lead" ? "sem_negocio" : "nao_roteado",
+        error: resolucao.reason,
+      };
+    }
+
+    const leadId = resolucao.leadId;
+
+    // 5. Busca o lead de origem
+    const origemResult = await dbQuery(
+      `SELECT * FROM crm_leads
+       WHERE organization_id = ? AND id = ? AND status = 'open' LIMIT 1`,
+      [organizationId, leadId],
+    );
+
+    if (origemResult.rowCount === 0) {
+      return { status: "sem_negocio" };
+    }
+
+    const origem = origemResult.rows[0] as any;
+
+    // 6. Verifica se já está no destino
+    if (origem.pipeline_id === destinoPipelineId && origem.stage_id === destinoStageId) {
+      return { status: "ja_no_destino" };
+    }
+
+    // 7. Verifica se já há um lead aberto no funil destino
+    const leadNoDestino = await dbQuery(
+      `SELECT id FROM crm_leads
+       WHERE organization_id = ? AND pipeline_id = ? AND status = 'open'
+       LIMIT 1`,
+      [organizationId, destinoPipelineId],
+    );
+
+    if (leadNoDestino.rowCount > 0) {
+      return { status: "destino_ocupado" };
+    }
+
+    // 8. Busca as etapas do funil de destino
+    const etapas = await buscarEtapasDoFunil(organizationId, destinoPipelineId);
+
+    if (etapas.length === 0) {
+      return { status: "recusado", error: "pipeline_without_initial_stage" };
+    }
+
+    // 9. Determina a etapa de destino
+    let etapaDestino: { id: string; name: string; pipeline_id: string } | null = null;
+    if (destinoStageId) {
+      etapaDestino = etapas.find((e) => e.id === destinoStageId) ?? null;
+      if (!etapaDestino) {
+        return { status: "recusado", error: "stage_pipeline_mismatch" };
       }
-      throw err;
-    },
-  );
-  if (!transferencia.ok) {
-    await abreAvisoDeDestinoRecusado(deps.admin, {
-      organizationId: deps.organizationId,
-      leadId: origem.id,
-      motivo: transferencia.error,
+    } else {
+      // Primeira etapa aberta (não ganha, não perde)
+      etapaDestino = etapas.find((e) => !e.is_won && !e.is_lost) ?? null;
+      if (!etapaDestino) {
+        return { status: "recusado", error: "pipeline_without_initial_stage" };
+      }
+    }
+
+    // 10. Converte origem para o formato esperado
+    const origemParaClonar: OrigemDaTransferencia = {
+      id: origem.id,
+      pipeline_id: origem.pipeline_id,
+      status: origem.status,
+      title: origem.title,
+      description: origem.description,
+      contact_id: origem.contact_id,
+      value_cents: origem.value_cents,
+      currency: origem.currency,
+      owner_user_id: origem.owner_user_id,
+      owner_agent_id: origem.owner_agent_id,
+      expected_close_date: origem.expected_close_date,
+      tags: origem.tags,
+      source: origem.source,
+      custom_fields: origem.custom_fields,
+      source_metadata: origem.source_metadata,
+    };
+
+    // 11. Chama a função de transferência
+    const resultado = await transfereParaOFunil(
+      deps._dbOrClient,
+      organizationId,
+      handlerCtx,
+      origemParaClonar,
+      destinoPipelineId,
+      destinoStageId,
+      `Transferido pelo roteador de intenção para ${destinoPipelineId}`,
+    );
+
+    if (!resultado.ok) {
+      // Abre aviso de recusa na Central
+      await abreAvisoDeDestinoRecusado(deps._dbOrClient, {
+        organizationId,
+        leadId,
+        motivo: resultado.error,
+      });
+      return { status: "recusado", error: resultado.error };
+    }
+
+    return {
+      status: "transferido",
+      origemId: leadId,
+      cloneId: (resultado as any).clone.id,
+    };
+  } catch (err) {
+    logger.error("[destino-da-intencao] erro inesperado", {
+      organizationId,
+      contactId,
+      error: err instanceof Error ? err.message : String(err),
     });
-    return { status: "recusado", error: transferencia.error, origemId: origem.id };
+    return { status: "recusado", error: "erro_interno" };
   }
-  return {
-    status: "transferido",
-    origemId: origem.id,
-    cloneId: String(transferencia.clone.id ?? ""),
-  };
 }
