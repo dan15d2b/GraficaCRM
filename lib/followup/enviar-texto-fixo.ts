@@ -4,7 +4,8 @@ import { assertAgendaEffectSupabase } from "@/lib/agenda/efeito";
 import { AgendaDeferredError } from "@/lib/agenda/protecao-followup";
 import { parseServiceBoundary, StaleServiceBoundaryError } from "@/lib/atendimento/fronteira";
 import { assertServiceBoundarySupabase } from "@/lib/atendimento/origem";
-import type { SupabaseClient } from "@supabase/supabase-js";
+// SupabaseClient é um alias para o tipo usado no novo stack local
+import type { SupabaseClient } from "@/lib/supabase/admin";
 
 import { sendMessageHandler } from "@/app/api/v1/messages/_handler";
 import { ApiError } from "@/lib/api/types";

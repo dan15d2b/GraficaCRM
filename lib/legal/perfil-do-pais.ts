@@ -22,7 +22,7 @@
 
 import { HOLIDAYS_BR_ISO } from "@/lib/lgpd/holidays-br";
 import { HOLIDAYS_PT_ISO } from "@/lib/lgpd/holidays-pt";
-import { dbQuery } from "@/lib/db/local";
+// import { dbQuery } from "@/lib/db/local"; // REMOVIDO: evita dependência pesada no Edge Runtime
 
 /** ISO-3166 alpha-2, em maiúsculas. `null`/vazio na coluna significa Brasil. */
 export type CodigoDePais = string;
@@ -251,6 +251,8 @@ export function citacaoDaLei(perfil: PerfilDoPais): string | null {
 
 export async function perfilDaOrganizacao(_dbOrClient: unknown, orgId: string): Promise<PerfilDoPais> {
   try {
+    // Importação dinâmica para evitar carregar better-sqlite3 no Edge Runtime
+    const { dbQuery } = await import("@/lib/db/local");
     const result = await dbQuery("SELECT country FROM organizations WHERE id = ? LIMIT 1", [orgId]);
     const row = result.rows[0] as { country?: string | null } | undefined;
     const declarado = row?.country ?? null;

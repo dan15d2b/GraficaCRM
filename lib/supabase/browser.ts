@@ -6,4 +6,4 @@
  */
 
 export const createBrowserClient = () => null;
-export const createClient = () => null;
+export const createClient = () => null as unknown as { channel: () => void; getChannels: () => void; removeChannel: () => void; removeAllChannels: () => void };
