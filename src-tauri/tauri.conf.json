@@ -5,8 +5,8 @@
   "identifier": "br.com.crmgrafica",
   "build": {
     "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "pnpm --dir ../frontend-node dev",
-    "beforeBuildCommand": "pnpm --dir ../frontend-node build",
+    "beforeDevCommand": "pnpm --filter frontend-node dev",
+    "beforeBuildCommand": "pnpm --filter frontend-node build",
     "frontendDist": "../frontend-node/dist"
   },
   "app": {

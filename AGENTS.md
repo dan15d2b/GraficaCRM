@@ -13,29 +13,75 @@
 
 ## Project Overview & Arquitetura Alvo
 
-Sistema operacional de vendas para gráficas e comunicação visual com agentes de IA nativos e WhatsApp via WAHA. A arquitetura é dividida em dois ambientes 100% independentes de Supabase/nuvem de terceiros:
+Sistema operacional de vendas para gráficas e comunicação visual com agentes de IA nativos e WhatsApp via WAHA. Arquitetura dividida em dois ambientes 100% independentes:
 
-1. **CRM Gráfica Local (Servidor do Cliente — Windows & Linux):**
-   - Roda localmente com extrema fluidez usando banco de dados local leve e eficiente (Motor Rust / SQLite WAL / LibSQL) e storage em disco local.
-   - **Setup Inicial na Instalação (Sem editar `.env`):** No primeiro acesso, abre tela de instalação pedindo a **Chave de Licença** (validada na VPS), **Usuário/Senha Admin Local** e **API Key dos Agentes de IA**, salvando tudo no banco local.
+1. **CRM Gráfica Desktop (Servidor do Cliente — Windows & Linux):**
+   - Tauri Desktop + Hono Backend + React + Vite + SQLite Local
+   - **Setup Inicial:** Abre tela de instalação pedindo Chave de Licença, Usuário/Senha Admin Local e API Key dos Agentes de IA, salvando tudo localmente.
+
 2. **Painel Admin & Servidor de Licenças (VPS AWS):**
-   - Painel leve na VPS AWS com banco de dados local próprio (sem Supabase), responsável por criar licenças e autenticar os servidores locais dos clientes.
-   - **Setup Inicial na VPS (Sem editar `.env`):** Na instalação/primeiro acesso na VPS, exige em tela a criação de **Usuário e Senha de Admin**, persistindo no banco local da VPS.
+   - Next.js App Router + Hono (API) + SQLite Local
+   - Responsável por criar licenças e autenticar os servidores locais dos clientes.
 
 ## Architecture & Data Flow
 
-- **App** — Next.js 16 App Router (Turbopack) + React 19 + TypeScript 6 estrito + Tailwind 4 (CSS-first em `app/globals.css`) + shadcn/ui (`new-york`). Middleware de borda em `proxy.ts` (Next 16 renomeou `middleware.ts` → `proxy.ts`; injeta `X-Request-Id`, verifica se o Setup Inicial já foi concluído e valida a sessão local + licença ativa).
-- **DB & Storage Local** — Persistência local de alta performance sem Supabase. Mantém todas as tabelas core (`organizations`, `users`, `crm_pipelines`, `crm_stages`, `crm_leads`, `crm_lead_activities`, `crm_lead_links`, `contacts`, `conversations`, `messages`, `api_audit_log`, `event_log`).
-- **Auth** — Autenticação local via cookie `SameSite=Strict`, `HttpOnly` + tokens `Authorization: Bearer dsk_...` via `lib/api/auth-dual.ts`.
-- **Filas** — Event sourcing leve via tabela local `event_log` + workers.
-- **IA** — Agentes de IA configurados via chave de API inserida na instalação (armazenada localmente de forma segura).
+- **Backend:** Hono (App Router-like middleware) + TypeScript + SQLite3 + better-sqlite3
+- **Frontend UI:** React 19 + Vite 5 + Tailwind 4 + shadcn/ui
+- **Desktop Runtime:** Tauri (Rust) + WebView
+- **DB & Storage Local:** SQLite WAL mode, alta performance, sem Supabase
+- **Auth:** JWT/HS256 com cookie HttpOnly SameSite=Strict, tokens `dsk_...`
+- **Filas:** Event sourcing via tabela local `event_log` + workers
+- **IA:** Agentes de IA configurados via chave de API inserida na instalação
 
-<!-- BEGIN:nextjs-agent-rules -->
+## Estrutura de Arquivos
 
-# This is NOT the Next.js you know
+```
+backend/                 # Backend Hono API (isolado, porta 3001)
+├─ src/server.ts          # Entry point
+├─ src/lib/               # logger, env, db, auth, license
+├─ src/routes/v1/        # API v1 endpoints
+├─ package.json         # "build": "tsc", "start": "tsx src/server.ts"
+├─ vite.config.ts
+└─ dist/                 # Build output
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+frontend-node/            # React + Vite (UI para Tauri)
+├─ src/                   # React components
+├─ index.html            # Entry point
+├─ vite.config.ts
+└─ dist/                 # Consumido pelo Tauri
 
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+src-tauri/                # Tauri Desktop (App Rust)
+├─ src/commands/         # Rust IPC commands
+├─ tauri.conf.json      # CORRIGIDO: frontendDist: "../../frontend-node/dist"
+└─ Cargo.toml
 
-<!-- END:nextjs-agent-rules -->
+admin-panel/              # Painel Admin VPS (Next.js separado)
+app/                       # pages Next.js App Router
+lib/                       # API clients, utils
+└── ...
+
+RAIZ DO PROJETO:
+package.json              # Next.js monorepo (VPS)
+.env.local                # Configuração
+README.md                 # Documentação principal
+docs/guia-VPS.md         # GUIA VPS
+docs/guia-local.md       # GUIA LOCAL/DESKTOP
+```
+
+## 📚 DOCUMENTAÇÃO DE PROCESSOS
+
+**SEMPRE atualizar estes arquivos após qualquer correção:**
+
+1. **MEMORY.md** - Histórico de correções e soluções
+2. **docs/guia-VPS.md** - Instalação no servidor
+3. **docs/guia-local.md** - Instalação desktop/local
+4. **AGENTS.md** - Regras e estrutura atualizadas
+
+## ⚠️ SEPARAÇÃO DE AMBIENTES
+
+- **VPS (Servidor):** `pnpm build` + `pnpm start` na raiz
+- **Desktop (Local):** `pnpm --filter crmgrafica-backend build`, `cargo tauri build`
+
+**NUNCA misture os builds** - cada ambiente tem sua própria estrutura de dependências!
+
+<!-- END:tauri-agent-rules -->

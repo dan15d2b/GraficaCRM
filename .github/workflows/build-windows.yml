@@ -1,0 +1,42 @@
+name: Build Windows .exe
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@9
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build frontend
+        run: cd frontend-node && pnpm build
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Tauri .exe
+        run: |
+          cd src-tauri
+          cargo tauri build --bundles msi
+
+      - name: Upload .exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: crmgrafica-windows
+          path: src-tauri/target/release/bundle/msi/*.msi

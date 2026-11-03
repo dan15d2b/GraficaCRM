@@ -1,127 +1,136 @@
 # MEMÓRIA DO SISTEMA - CRM Gráfica 2.0
 
-## ✅ STATUS FINAL: BUILD CONCLUÍDO
+## 📋 PROCESSO DE DEPLOY - ARQUITETURA DUAL
 
-### O que foi concluído:
-1. ✅ **Backend Hono compilado** - `backend/dist/src/` funcional
-2. ✅ **Frontend Vite buildado** - `frontend-node/dist/` com index.html e assets
-3. ✅ **Backend Node.js pronto para start** - `node dist/index.js` na porta 3000
-4. ✅ **SQLite Schema criado** - Tabelas: setup_status, organizations, users, clients, licenses, ai_provider_credentials, refresh_tokens
-5. ✅ **Auth JWT implementado** - HS256 com tokens `dsk_...`
+### **Arquitetura da VPS (Servidor) - Principal**
+- **Framework:** Next.js 16 App Router (Tudo na raiz)
+- **Banco:** SQLite local 
+- **Auth:** JWT + HttpOnly Cookies + validação de licença
+- **Porta:** 3000 (configurable via .env.local)
+- **Comando build:** `pnpm build` (na raiz do projeto)
+- **Comando start:** `pnpm start` (na raiz do projeto)
 
-### Estrutura Final:
+### **Arquitetura Local/Desktop (Tauri)**
+- **Framework:** React + Vite + Tauri
+- **Banco:** SQLite via Rust/Tauri IPC
+- **Auth:** JWT Local + Setup Wizard
+- **Porta Backend:** 3001
+- **Build:** `cargo tauri build` → gera .deb/.exe
+- **frontendDist:** `../../frontend-node/dist`
 
+---
+
+## 🔧 CORREÇÕES EXECUTADAS
+
+### 1. Corrigido `tauri.conf.json`
+```json
+{
+  "build": {
+    "beforeDevCommand": "pnpm --filter frontend-node dev",
+    "beforeBuildCommand": "pnpm --filter frontend-node build",
+    "frontendDist": "../../frontend-node/dist"
+  }
+}
 ```
-backend/
-├── src/server.ts          # Entry point Hono (port 3000)
-├── src/lib/
-│   ├── logger.ts          # JSON logger
-│   ├── env.ts             # Config ambiente
-│   ├── db/local.ts        # SQLite wrapper (better-sqlite3)
-│   ├── auth/local.ts      # JWT auth
-│   ├── license/client.ts  # Validação licença via HTTP
-│   └── api/wrappers.ts    # ok()/fail() helpers
-├── src/routes/v1/
-│   ├── index.ts           # Route aggregator
-│   └── setup.ts           # Setup Wizard completo
-└── dist/                  # Build output
-    └── src/**/*.js
 
-frontend-node/ (consumido pelo Tauri)
-├── dist/index.html
-├── dist/assets/*.{js,css}
-└── dev server (pnpm dev) em http://localhost:1420
+### 2. Corrigido `backend/tsconfig.json` paths
+```json
+{
+  "paths": {
+    "@/*": ["./src/*"],
+    "@/lib/*": ["./src/lib/*"],
+    "@/lib/db/local": ["./src/lib/db/local.ts"],
+    "@/lib/auth/local": ["./src/lib/auth/local.ts"],
+    "@/lib/logger": ["./src/lib/logger.ts"],
+    "@/lib/api/wrappers": ["./src/lib/api/wrappers.ts"],
+    "@/lib/license/client": ["./src/lib/license/client.ts"],
+    "@/lib/env": ["./src/lib/env.ts"]
+  }
+}
+```
 
-src-tauri/
-├── tauri.conf.json
-│   frontendDist: "../frontend-node/dist"
-├── Cargo.toml
-└── target/release/app  ← BINÁRIO PRONTO (17MB)
+### 3. Build do backend concluído
+```bash
+pnpm --filter crmgrafica-backend build  # ✓ Sucesso
 ```
 
 ---
 
-## COMO TESTAR
+## 📁 ESTRUTURA CORRETA (sem workspaces)
 
-### Opção 1: Modo Desktop (Tauri)
-```bash
-# Build final
-cargo build --release --manifest-path src-tauri/Cargo.toml
-
-# Binário
-./src-tauri/target/release/app
+```
+GraficaCRM-main/
+├── package.json              # Next.js monorepo (VPS) - build/start na raiz
+├── backend/                  # Hono API (isolado, porta 3001) - separado
+│   ├── src/server.ts        # Entry point
+│   ├── src/lib/             # logger, env, db, auth, license
+│   ├── src/routes/v1/       # API v1 endpoints
+│   ├── package.json         # Scripts: build, start, dev
+│   ├── vite.config.ts
+│   └── dist/                # Build output
+├── frontend-node/            # React + Vite (UI para Tauri) - separado
+│   ├── src/                 # Componentes React
+│   ├── dist/                # Build estático
+│   ├── package.json
+│   └── vite.config.ts
+├── src-tauri/               # App Desktop (Rust) - separado
+│   ├── src/commands/        # Rust IPC
+│   ├── tauri.conf.json      # CORRIGIDO
+│   └── Cargo.toml
+├── app/                     # UI React + Next.js (na raiz, usado pela VPS)
+├── lib/                     # Bibliotecas compartilhadas
+├── admin-panel/             # Painel Admin VPS (separação futura)
+└── .env.local               # Configuração (VPS usa na raiz)
 ```
 
-### Opção 2: Modo Desenvolvimento (Node.js + Tauri dev)
+---
+
+## 🚀 COMANDOS PARA VPS (Servidor)
+
 ```bash
-# 1. Iniciar backend (em outra aba)
+# Na raiz do projeto
+pnpm install
+pnpm build
+pnpm start
+# → http://localhost:3000
+
+# Setup Wizard
+http://localhost:3000/setup
+```
+
+## 🚀 COMANDOS PARA DESKTOP/LOCAL
+
+```bash
+# Backend isolado
 cd backend
-pnpm start   # http://localhost:3000
+pnpm build
+pnpm start  # http://localhost:3001
 
-# 2. Iniciar Tauri dev
+# Frontend para Tauri
+cd ../frontend-node
+pnpm build
+
+# Tauri Desktop
 cd ../src-tauri
+cargo tauri build
+# → target/release/bundle/debian/*.deb
+
+# Dev Desktop
 cargo tauri dev
 ```
 
-### Opção 3: Modo Web
-```bash
-# 1. Build frontend
-cd frontend-node
-pnpm build   # gera dist/
+---
 
-# 2. Servir estáticos
-npx serve dist   # http://localhost:1420
-# (ou use qualquer servidor de arquivos)
-```
+## 📚 GUIAS ATUALIZADOS
+
+- `docs/guia-VPS.md` - Instalação no servidor
+- `docs/guia-local.md` - Instalação desktop/local
+- `MEMORY.md` - Este arquivo (histórico)
+- `AGENTS.md` - Regras e estrutura atualizadas
+- `CLAUDE.md` - Regras de engenharia
 
 ---
 
-## RESOLUÇÃO DO ERRO "Connection refused"
+## ⚠️ IMPORTANTE - NÃO usar workspaces
 
-O erro ocorre porque:
-1. O frontend tenta `fetch('http://localhost:3000/api/v1/setup')`
-2. Em Tauri Desktop, não há servidor HTTP rodando automaticamente
-
-### Solução:
-**Iniciar o backend antes de abrir o app Tauri:**
-```bash
-cd backend && pnpm start &
-cargo tauri dev
-```
-
-### Alternativa (mais simples para produção):
-Modificar o frontend para usar Tauri IPC em vez de HTTP:
-```javascript
-// Em vez de: fetch('/api/v1/setup', { method: 'POST', body: JSON.stringify(data) })
-// Use:
-await invoke('sqlite_execute', { sql: 'INSERT INTO ...', params: [...] })
-```
-
----
-
-## ROTAS API (Backend Hono na porta 3000)
-
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/v1/health` | Health check |
-| GET | `/api/v1/setup/status` | Status configuração |
-| POST | `/api/v1/setup` | Setup Wizard (valida licença, cria admin) |
-
----
-
-## ARQUIVOS CRIADOS (Passo a Passo)
-
-1. ✅ `backend/src/lib/logger.ts`
-2. ✅ `backend/src/lib/env.ts`
-3. ✅ `backend/src/lib/db/local.ts`
-4. ✅ `backend/src/lib/auth/local.ts`
-5. ✅ `backend/src/lib/license/client.ts`
-6. ✅ `backend/src/lib/api/wrappers.ts`
-7. ✅ `backend/src/server.ts`
-8. ✅ `backend/src/routes/v1/setup.ts`
-9. ✅ `backend/src/routes/v1/index.ts`
-10. ✅ `frontend-node/dist/` (build existente)
-11. ✅ `src-tauri/target/release/app` (binário Rust)
-
----
-*Última atualização: 2026-11-02 19:45*
+O projeto **não usa pnpm workspaces**. Todo o código Next.js está na raiz. Os diretórios `backend/` e `frontend-node/` são estruturas **paralelas** para o app Tauri Desktop.

@@ -59,7 +59,7 @@ frontend-node/            # UI React + Vite (build estático para Tauri)
 
 src-tauri/                # Tauri Desktop App
 ├─ src/                   # Rust commands
-├─ tauri.conf.json       # Tauri config (frontendDist: "../frontend-node/dist")
+├─ tauri.conf.json       # CORRIGIDO: frontendDist: "../../frontend-node/dist"
 ├─ Cargo.toml            # Rust dependencies
 └─ icon/                 # Ícones da aplicação
 

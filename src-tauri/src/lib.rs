@@ -1,7 +1,7 @@
 pub mod commands;
 use commands::{
     get_app_dir, get_config_dir, get_data_dir, login_local, setup_complete, setup_status,
-    sqlite_execute, sqlite_init, sqlite_query,
+    sqlite_execute, sqlite_init, sqlite_query, init_tauri_backend, check_setup_status,
 };
 
 pub fn run() {
@@ -18,6 +18,8 @@ pub fn run() {
             setup_status,
             setup_complete,
             login_local,
+            init_tauri_backend,
+            check_setup_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

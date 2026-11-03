@@ -21,15 +21,14 @@
       }
     ],
     "paths": {
-      "@/*": ["../@/*"],
-      "@/lib/*": ["../lib/*"],
-      "@/lib/db/local": ["../lib/db/local.ts"],
-      "@/lib/auth/local": ["../lib/auth/local.ts"],
-      "@/lib/logger": ["../lib/logger.ts"],
-      "@/lib/api/wrappers": ["../lib/api/wrappers.ts"],
-      "@/lib/license/client": ["../lib/license/client.ts"],
-      "@/lib/env": ["../lib/env.ts"],
-      "@/lib/retencao/politica": ["../lib/retencao/politica.ts"]
+      "@/*": ["./src/*"],
+      "@/lib/*": ["./src/lib/*"],
+      "@/lib/db/local": ["./src/lib/db/local.ts"],
+      "@/lib/auth/local": ["./src/lib/auth/local.ts"],
+      "@/lib/logger": ["./src/lib/logger.ts"],
+      "@/lib/api/wrappers": ["./src/lib/api/wrappers.ts"],
+      "@/lib/license/client": ["./src/lib/license/client.ts"],
+      "@/lib/env": ["./src/lib/env.ts"]
     },
     "outDir": "./dist"
   },
