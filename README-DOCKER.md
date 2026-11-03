@@ -26,7 +26,7 @@ docker run -d -p 3000:3000 --name crmgrafica_container -v $(pwd)/data:/app/data 
 
 ## Variáveis de ambiente necessárias
 - DATABASE_URL="file:/app/data/app.db"
-- JWT_SECRET="sua_chave_secreta"
+- JWT_SECRET="<gerar_com: openssl rand -hex 32>
 - NEXT_PUBLIC_APP_URL="https://crmadmin.duckdns.org"
 
 ## Alternativa com docker-compose
