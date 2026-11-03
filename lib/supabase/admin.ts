@@ -213,4 +213,8 @@ function createMockClient(): SupabaseClient {
 
 export const getSupabaseAdmin = () => createMockClient();
 
+// Aliases para compatibilidade - código antigo usa estes nomes
+export const createAdminClient = getSupabaseAdmin;
+export const createClient = getSupabaseAdmin;
+
 export type { SupabaseClient };

@@ -11,3 +11,6 @@ export const getUrlDoServidor = () => {
   }
   return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 };
+
+// Aliases para compatibilidade
+export const urlDoSupabaseNoServidor = getUrlDoServidor;

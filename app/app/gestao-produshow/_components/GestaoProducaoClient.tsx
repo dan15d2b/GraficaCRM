@@ -36,7 +36,7 @@ import {
   ShoppingCart,
   Users as UsersIcon,
   Box,
-  megaphone,
+  Megaphone,
   Mail,
   Link as LinkIcon,
 } from "lucide-react";
@@ -77,7 +77,7 @@ const DADOS_FUNIL = [
 const DADOS_TRASCOSO = [
   { fonte: "Orgânico", valor: 38.4, cor: "#6366f1", icon: Search },
   { fonte: "Direto", valor: 22.1, cor: "#8b5cf6", icon: LinkIcon },
-  { fonte: "Social Media", valor: 18.7, cor: "#ec4899", icon: megaphone },
+  { fonte: "Social Media", valor: 18.7, cor: "#ec4899", icon: Megaphone },
   { fonte: "Paid Ads", valor: 12.6, cor: "#f59e0b", icon: Bell },
   { fonte: "Email", valor: 6.2, cor: "#10b981", icon: Mail },
   { fonte: "Referências", valor: 4.0, cor: "#64748b", icon: LinkIcon },
@@ -194,7 +194,7 @@ export default function GestaoProducaoClient() {
             { icon: Box, label: "Produtos" },
             { icon: UsersIcon, label: "Clientes" },
             { icon: BarChart3, label: "Analytics" },
-            { icon: megaphone, label: "Marketing" },
+            { icon: Megaphone, label: "Marketing" },
             { icon: Settings, label: "Configurações" },
           ].map((item) => (
             <button

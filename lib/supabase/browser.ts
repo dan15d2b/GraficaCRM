@@ -7,3 +7,7 @@
 
 export const createBrowserClient = () => null;
 export const createClient = () => null as unknown as { channel: () => void; getChannels: () => void; removeChannel: () => void; removeAllChannels: () => void };
+
+// Aliases para compatibilidade
+export const prepareRealtimeAuthentication = () => {};
+export const resetRealtimeAuthentication = () => {};
