@@ -1,0 +1,9 @@
+<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+  <!-- Quadrado de conexão -->
+  <rect x="8" y="8" width="44" height="44" fill="none" stroke="#e2e8f0" stroke-width="3" rx="8"/>
+  <!-- Pontos coloridos -->
+  <circle cx="14" cy="14" r="10" fill="#3b82f6"/>
+  <circle cx="46" cy="14" r="10" fill="#ef4444"/>
+  <circle cx="14" cy="46" r="10" fill="#f59e0b"/>
+  <circle cx="46" cy="46" r="10" fill="#1e293b"/>
+</svg>

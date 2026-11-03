@@ -1,0 +1,42 @@
+@import "tailwindcss" source(none);
+
+@source "./app/**/*.tsx";
+
+@theme {
+  --color-bg: #faf9f6;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #f5f3ee;
+  --color-text: #1c1a16;
+  --color-text-muted: #5d594f;
+  --color-border: #e7e3da;
+  --color-accent: #3f586d;
+}
+
+[data-theme="dark"] {
+  --color-bg: #1c1a16;
+  --color-surface: #2e2c26;
+  --color-surface-elevated: #32302a;
+  --color-text: #f5f4ef;
+  --color-text-muted: #7d786c;
+  --color-border: #3d3b34;
+  --color-accent: #344758;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #faf9f6;
+  --color-surface: #ffffff;
+  --color-text: #1c1a16;
+  --color-border: #e7e3da;
+}
+
+.min-h-screen {
+  min-height: 100vh;
+}
+
+.bg-slate-50 {
+  background-color: #f8fafc;
+}

@@ -45,8 +45,17 @@ out/
 # ====================
 *.sqlite
 *.db
-backend/data/
-frontend-node/data/
+data/
+*.sqlite-shm
+*.sqlite-wal
+
+# ====================
+# Local development data
+# ====================
+.local-env/
+.env.local
+.env.*.local
+.env.backup*
 
 # ====================
 # Environment & Secrets
@@ -125,15 +134,12 @@ STATUS_MIGRACAO.md
 lib/db/fs-mock.ts
 
 # ====================
-# Deprecated Next.js app (old architecture)
-# ====================
-app/
-components/
-lib/
-public/
-scripts/
-
-# ====================
 # Old documentation that mentions Supabase (deprecated)
 # ====================
-docs/
+docs/guia-antigo/
+docs/runbooks/legacy/
+
+# ====================
+# Platform submodule (old DeskcommCRM code)
+# ====================
+platform/

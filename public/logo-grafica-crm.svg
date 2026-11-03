@@ -1,0 +1,14 @@
+<svg viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(10, 10)">
+    <!-- Quadrado de conexão -->
+    <rect x="12" y="12" width="36" height="36" fill="none" stroke="#e2e8f0" stroke-width="3"/>
+    <!-- Pontos coloridos -->
+    <circle cx="12" cy="12" r="10" fill="#3b82f6"/>
+    <circle cx="48" cy="12" r="10" fill="#ef4444"/>
+    <circle cx="12" cy="48" r="10" fill="#f59e0b"/>
+    <circle cx="48" cy="48" r="10" fill="#1e293b"/>
+  </g>
+  <!-- Texto -->
+  <text x="65" y="42" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#1e293b">Grafica</text>
+  <text x="148" y="42" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#3b82f6">CRM</text>
+</svg>
